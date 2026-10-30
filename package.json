@@ -1,0 +1,23 @@
+{
+  "name": "github-flex",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Flex your GitHub progress with a shareable, aesthetic card.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.1.0",
+    "@fontsource/jetbrains-mono": "5.1.0",
+    "html-to-image": "1.11.11",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.3",
+    "vite": "5.4.10"
+  }
+}
