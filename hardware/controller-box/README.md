@@ -21,6 +21,7 @@ Model parametrik CadQuery, solid B-rep **tanpa mesh**. File STEP bisa langsung d
 | `out/print/opi_tray.step` | **Cetak:** tray Orange Pi |
 | `out/print/opi_fan_bracket.step` | **Cetak:** dudukan kipas di atas Orange Pi |
 | `out/print/camera_hub.step` | **Cetak:** hub tiang + dudukan 4 kamera + ruang kabel |
+| `out/print_stl/*.stl` | Part yang sama dalam format STL, **sudah diputar ke orientasi cetak** (lid dan bracket terbalik) dan berada di Z=0 |
 
 ## Susunan dari atas ke bawah
 
