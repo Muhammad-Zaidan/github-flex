@@ -107,7 +107,8 @@ HUB_BOLTS = [(90, 90), (-90, 90), (90, -90), (-90, -90)]
 POLE_W = 80.0
 POLE_LEN = 400.0
 HUB_IN = POLE_W / 2 + 1.0            # sleeve inner half-width (1 mm clearance)
-HUB_OUT = 51.0                       # sleeve outer half-width (10 mm wall)
+HUB_OUT = 51.0                       # camera zone outer half-width (10 mm wall)
+HUB_OUT_LOW = 48.0                   # lower sleeve over the pole (7 mm wall)
 HUB_Z0 = -80.0                       # sleeve bottom (80 mm engagement)
 CAM_PAD = 5.0                        # camera mounting pads on each face
 CAM_PLATE_TOP_Z = 77.0               # top of camera wall plate
@@ -454,7 +455,11 @@ def make_opi_fan_bracket():
 
 def make_hub():
     # Sleeve
-    hub = box(-HUB_OUT, HUB_OUT, -HUB_OUT, HUB_OUT, HUB_Z0, FLARE_Z0).edges("|Z").chamfer(4)
+    # Lower sleeve (over the pole, 7 mm wall) -> 45-degree step -> camera zone (10 mm wall)
+    step = HUB_OUT - HUB_OUT_LOW
+    hub = box(-HUB_OUT_LOW, HUB_OUT_LOW, -HUB_OUT_LOW, HUB_OUT_LOW, HUB_Z0, -step).edges("|Z").chamfer(4)
+    hub = hub.union(oct_loft(2 * HUB_OUT_LOW, 2 * HUB_OUT_LOW, 4, 2 * HUB_OUT, 2 * HUB_OUT, 4, -step, step))
+    hub = hub.union(box(-HUB_OUT, HUB_OUT, -HUB_OUT, HUB_OUT, 0, FLARE_Z0).edges("|Z").chamfer(4))
     # 45-degree flare up to the chamber, then the chamber ring
     flare = oct_loft(2 * HUB_OUT, 2 * HUB_OUT, 4, 2 * CHAMBER_OUT, 2 * CHAMBER_OUT, 10,
                      FLARE_Z0, RING_Z0 - FLARE_Z0)
@@ -486,7 +491,7 @@ def make_hub():
         hub = hub.cut(rot_z(union_all(cuts), 90 * k))
     # Lock bolts M8 through hub + pole
     for (z, ax) in LOCK_BOLTS:
-        h = teardrop_x(-HUB_OUT - 2, 2 * HUB_OUT + 4, 0, z, 4.3)
+        h = teardrop_x(-HUB_OUT_LOW - 2, 2 * HUB_OUT_LOW + 4, 0, z, 4.3)
         hub = hub.cut(h if ax == "x" else rot_z(h, 90))
     # Box bolts: M5 clearance + counterbore from below (exits the flare outside)
     for (x, y) in HUB_BOLTS:
@@ -507,10 +512,10 @@ def make_pole():
 def make_lock_bolts():
     out = []
     for (z, ax) in LOCK_BOLTS:
-        L = 2 * HUB_OUT + 16
-        b = cq.Workplane("YZ", origin=(-HUB_OUT - 6, 0, z)).circle(4).extrude(L)
-        b = b.union(cq.Workplane("YZ", origin=(-HUB_OUT - 6, 0, z)).polygon(6, 14.6).extrude(-5.5))
-        b = b.union(cq.Workplane("YZ", origin=(HUB_OUT + 1, 0, z)).polygon(6, 14.6).extrude(7))
+        L = 2 * HUB_OUT_LOW + 16
+        b = cq.Workplane("YZ", origin=(-HUB_OUT_LOW - 6, 0, z)).circle(4).extrude(L)
+        b = b.union(cq.Workplane("YZ", origin=(-HUB_OUT_LOW - 6, 0, z)).polygon(6, 14.6).extrude(-5.5))
+        b = b.union(cq.Workplane("YZ", origin=(HUB_OUT_LOW + 1, 0, z)).polygon(6, 14.6).extrude(7))
         out.append(b if ax == "x" else rot_z(b, 90))
     return union_all(out)
 

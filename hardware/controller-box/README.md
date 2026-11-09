@@ -29,7 +29,7 @@ Model parametrik CadQuery, solid B-rep **tanpa mesh**. File STEP bisa langsung d
 2. **Ruang kabel (chamber):** bagian atas hub, 168 × 168 mm. Semua cable gland di lantai box ada di dalam ruang ini, jadi terlindung dari hujan langsung.
 3. **Flare 45°:** bagian hub yang melebar dari sleeve ke chamber. Bisa dicetak tanpa support.
 4. **Dudukan kamera:** 4 pad di 4 sisi sleeve, masing-masing dengan **4 heat-set insert M4** sesuai pola lubang plat kamera (47 × 57). Di belakang tiap plat ada **lubang kabel Ø22**, jadi kabel kamera langsung masuk ke dalam hub lalu naik ke chamber.
-5. **Sleeve:** dinding **10 mm** (ditambah pad 5 mm = 15 mm di area baut kamera), dimasukkan ke tiang **80 × 80** sedalam 80 mm, dan duduk di atas ujung tiang lewat 4 tonjolan penahan.
+5. **Sleeve:** di zona kamera dinding **10 mm** (ditambah pad 5 mm = 15 mm di area baut kamera); bagian bawah yang masuk ke tiang 7 mm (ditopang tiang). Sleeve dimasukkan ke tiang **80 × 80** sedalam 80 mm, dan duduk di atas ujung tiang lewat 4 tonjolan penahan.
 6. **Kunci ke tiang:** **2 baut M8 tembus** (hub dan tiang dibor Ø8.5). Satu arah X di 25 mm dan satu arah Y di 58 mm di bawah ujung tiang, pakai mur nyloc dan ring.
 
 Tinggi total di atas ujung tiang 263 mm. Bentang kamera sekitar 440 mm.
@@ -94,7 +94,7 @@ Uplink internet lewat **Wi-Fi Orange Pi**. Box plastik tidak menghalangi sinyal.
 | Tray + kaki bracket | 6× M3 | M3 × 8 |
 | Lantai box (ke hub) | 4× M5 (dari bawah) | M5 × 20 + ring |
 | Pad kamera di hub | 16× M4 | M4 × 12 |
-| Kunci ke tiang | | 2× M8 × 120 + mur nyloc + ring |
+| Kunci ke tiang | | 2× M8 × 110 + mur nyloc + ring |
 
 ## Daya (perkiraan)
 
