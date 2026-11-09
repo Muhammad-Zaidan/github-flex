@@ -10,9 +10,9 @@ Contents
   - TP-Link LS1005 switch (83.6 x 45.7 x 22.8 mm)
   - 12 V PSU, 128 x 97.5 x 30 mm (stood on its long edge against the back wall)
   - 12 V -> 5 V buck converter (for the Orange Pi and the switch)
-  - 2x 60 x 60 x 37.5 mm fans: intake low-left, exhaust high-right
+  - 2x 60 x 60 x 37.5 mm wall fans: intake low-left, exhaust high-right
   - WAGO 221 distribution blocks
-  - USB 4G LTE modem (uplink) on the PSU face
+  - 3rd fan (60 x 60 x 37.5) on a bracket directly above the Orange Pi
   - 6 cable glands in the floor (5x M16, 1x M20 for AC)
 
 Weather protection
@@ -73,11 +73,13 @@ COWL_W = 76.0
 
 PSU = (128.0, 97.5, 30.0)      # length, height (standing), thickness
 OPI = (89.0, 57.0, 1.6)
-OPI_COOLER_H = 20.0
+OPI_COOLER_H = 20.0            # heatsink height (passive; the top fan cools it)
+TOPFAN_GAP = 2.4               # heatsink top -> bracket frame
+BRACKET_POSTS_X = 36.5         # bracket posts stand on the floor right of the tray
+BRACKET_POSTS_Y = (-54.0, -1.0)
 SWITCH = (83.6, 45.7, 22.8)
 BUCK = (65.0, 40.0, 22.0)
 WAGO = (31.0, 19.0, 8.5)       # WAGO 221-415 lying flat
-MODEM = (95.0, 13.0, 32.0)     # USB 4G LTE dongle envelope (x, y, z), velcro on PSU face
 
 GLANDS = [(-75, "M16"), (-45, "M16"), (-15, "M16"), (15, "M16"), (45, "M16"), (75, "M20")]
 GLAND_Y = -72.0
@@ -94,7 +96,6 @@ C_SW = cq.Color(0.95, 0.95, 0.95)
 C_FAN = cq.Color(0.10, 0.10, 0.11)
 C_BUCK = cq.Color(0.10, 0.25, 0.55)
 C_WAGO = cq.Color(0.55, 0.62, 0.70)
-C_MODEM = cq.Color(0.92, 0.92, 0.90)
 C_GLAND = cq.Color(0.20, 0.20, 0.20)
 C_TRAY = cq.Color(0.30, 0.31, 0.33)
 CABLE_C = {
@@ -102,7 +103,6 @@ CABLE_C = {
     "12v": cq.Color(0.80, 0.10, 0.10),
     "5v": cq.Color(0.95, 0.55, 0.05),
     "eth": cq.Color(0.10, 0.35, 0.85),
-    "usb": cq.Color(0.55, 0.55, 0.58),
 }
 
 # Derived
@@ -290,6 +290,15 @@ BUCK_POS = (34.5, 6.0)
 PSU_Y0 = HY - PSU[2] - 1.0               # PSU against the back wall
 WAGO_POS = [(64.0, -54.0), (64.0, -32.0)]
 
+OPI_CX = (OPI_TRAY[0] + OPI_TRAY[1]) / 2
+OPI_CY = (OPI_TRAY[2] + OPI_TRAY[3]) / 2
+PCB_Z = 4 + 3 + 6                                   # tray boss + tray + pillar
+SINK_TOP = PCB_Z + OPI[2] + OPI_COOLER_H
+FRAME_T = 3.0
+FRAME_Z0 = SINK_TOP + TOPFAN_GAP                    # bracket frame underside
+TOPFAN_Z0 = FRAME_Z0 + FRAME_T                      # top fan sits on the frame
+POST_BOSS_H = 4.0
+
 
 def make_floor_features():
     feats = []
@@ -326,6 +335,12 @@ def make_floor_features():
         w = box(x - 2, x + WAGO[0] + 2, y - 2, y + WAGO[1] + 2, 0, 4)
         w = w.cut(box(x, x + WAGO[0], y, y + WAGO[1], 1.5, 5))
         feats.append(w)
+    # Bosses for the top-fan bracket posts (M3 inserts)
+    for y in BRACKET_POSTS_Y:
+        b = cq.Workplane("XY", origin=(BRACKET_POSTS_X, y, 0)).circle(5.5).extrude(POST_BOSS_H)
+        b = b.cut(cq.Workplane("XY", origin=(BRACKET_POSTS_X, y, POST_BOSS_H - INSERT_M3[1] + 2))
+                  .circle(INSERT_M3[0] / 2).extrude(INSERT_M3[1]))
+        feats.append(b)
     return union_all(feats)
 
 
@@ -404,6 +419,51 @@ def make_gasket():
                     GROOVE_W - 0.3, Z_RIM - GROOVE_D, GASKET_H)
 
 
+def make_opi_fan_bracket():
+    """Cantilever bracket holding a 60 mm fan directly above the Orange Pi,
+    blowing down onto the heatsink. Two slim posts on the right so the
+    left->right cross-flow stays open. Print it upside down (frame on the bed):
+    no supports."""
+    half = FAN[0] / 2 + 2
+    z0, z1 = FRAME_Z0, FRAME_Z0 + FRAME_T
+    frame = box(OPI_CX - half, OPI_CX + half, OPI_CY - half, OPI_CY + half, z0, z1)
+    frame = frame.edges("|Z").chamfer(4)
+    frame = frame.cut(cq.Workplane("XY", origin=(OPI_CX, OPI_CY, z0 - 1)).circle(28.5).extrude(FRAME_T + 2))
+    # finger guard bars across the opening
+    for a in (0, 90):
+        bar = box(OPI_CX - 29, OPI_CX + 29, OPI_CY - 1.2, OPI_CY + 1.2, z0, z1)
+        frame = frame.union(bar.rotate((OPI_CX, OPI_CY, 0), (OPI_CX, OPI_CY, 1), a + 45))
+    frame = frame.union(cq.Workplane("XY", origin=(OPI_CX, OPI_CY, z0)).circle(8).extrude(FRAME_T))
+    # arm from the frame to the posts (two rails, open between for airflow)
+    x_arm0 = OPI_CX + half - 4
+    x_post = BRACKET_POSTS_X
+    arms = []
+    for y in BRACKET_POSTS_Y:
+        arms.append(box(x_arm0, x_post + 4, y - 4, y + 4, z0, z1))
+        arms.append(box(OPI_CX + FAN[0] / 2 + 0.6, x_post + 4, y - 4, y + 4, z1, z1 + 3))
+        # post
+        arms.append(box(x_post - 4, x_post + 4, y - 4, y + 4, POST_BOSS_H + 3, z1 + 3))
+        # foot
+        foot = box(x_post - 7, x_post + 7, y - 6, y + 6, POST_BOSS_H, POST_BOSS_H + 3).edges("|Z").chamfer(2)
+        arms.append(foot)
+        # 45-degree gusset post -> arm (prints fine upside down)
+        g = (cq.Workplane("XZ", origin=(0, y, 0))
+             .polyline([(x_post - 4, z0), (x_post - 4 - 14, z0), (x_post - 4, z0 - 14)]).close()
+             .extrude(2.5, both=True))
+        arms.append(g)
+    # cross tie between the two posts, high up (above the airflow path of the PCB)
+    arms.append(box(x_post - 4, x_post + 4, BRACKET_POSTS_Y[0], BRACKET_POSTS_Y[1], z1, z1 + 3))
+    br = frame.union(union_all(arms))
+    # fan screw holes (M3 through, fan holes on a 50 mm pitch)
+    for dx in (-FAN_HOLE_PITCH / 2, FAN_HOLE_PITCH / 2):
+        for dy in (-FAN_HOLE_PITCH / 2, FAN_HOLE_PITCH / 2):
+            br = br.cut(cq.Workplane("XY", origin=(OPI_CX + dx, OPI_CY + dy, z0 - 1)).circle(1.7).extrude(FRAME_T + 2))
+    # foot screw holes (M3 into the floor bosses)
+    for y in BRACKET_POSTS_Y:
+        br = br.cut(cq.Workplane("XY", origin=(x_post + 0, y, POST_BOSS_H - 1)).circle(1.7).extrude(5))
+    return br
+
+
 def make_opi_tray():
     tx0, tx1, ty0, ty1 = OPI_TRAY
     t = 3.0
@@ -435,7 +495,7 @@ def make_components():
     c = {}
     tx0, tx1, ty0, ty1 = OPI_TRAY
     cx, cy = (tx0 + tx1) / 2, (ty0 + ty1) / 2
-    pcb_z = 4 + 3 + 6
+    pcb_z = PCB_Z
     c["orangepi5ultra_pcb"] = (box(cx - OPI[0] / 2, cx + OPI[0] / 2, cy - OPI[1] / 2, cy + OPI[1] / 2,
                                    pcb_z, pcb_z + OPI[2]), C_PCB)
     sink = box(cx - 20, cx + 36, cy - 22, cy + 22, pcb_z + OPI[2], pcb_z + OPI[2] + 4)
@@ -455,9 +515,6 @@ def make_components():
     buck = buck.union(box(bx0 + 8, bx0 + 30, by0 + 8, by0 + 32, 3.6, 2 + BUCK[2]))
     c["buck_12v_to_5v"] = (buck, C_BUCK)
     c["psu_12v"] = (box(-PSU[0] / 2, PSU[0] / 2, PSU_Y0, PSU_Y0 + PSU[2], 2, 2 + PSU[1]), C_PSU)
-    # USB 4G modem, velcro'd to the PSU front face (plastic box = antenna works inside)
-    c["usb_4g_modem"] = (box(-45, -45 + MODEM[0], PSU_Y0 - 1 - MODEM[1], PSU_Y0 - 1, 42, 42 + MODEM[2])
-                         .edges("|Y").fillet(4), C_MODEM)
     for i, (x, y) in enumerate(WAGO_POS):
         c[f"wago_221_{i + 1}"] = (box(x, x + WAGO[0], y, y + WAGO[1], 1.5, 1.5 + WAGO[2]), C_WAGO)
 
@@ -469,6 +526,12 @@ def make_components():
         return f.union(hub)
 
     c["fan_intake"] = (fan(-HX + 3, -HX + 3 + FAN[2], FAN_IN_Z), C_FAN)
+    # top fan above the Orange Pi (axis vertical, blowing down)
+    tf = box(OPI_CX - FAN[0] / 2, OPI_CX + FAN[0] / 2, OPI_CY - FAN[1] / 2, OPI_CY + FAN[1] / 2,
+             TOPFAN_Z0, TOPFAN_Z0 + FAN[2]).edges("|Z").chamfer(3)
+    tf = tf.cut(cq.Workplane("XY", origin=(OPI_CX, OPI_CY, TOPFAN_Z0 - 1)).circle(28).extrude(FAN[2] + 2))
+    tf = tf.union(cq.Workplane("XY", origin=(OPI_CX, OPI_CY, TOPFAN_Z0)).circle(13).extrude(FAN[2]))
+    c["fan_top_opi"] = (tf, C_FAN)
     c["fan_exhaust"] = (fan(HX - 3 - FAN[2], HX - 3, FAN_OUT_Z), C_FAN)
 
     # Glands (nut inside + dome outside)
@@ -520,13 +583,14 @@ def make_cables():
         # 12 V out to the 4 cameras through the front glands
         "cable_12v_cams": ("12v", [(w1[0] - 12, w1[1] - 4, 6), (30, -62, 6), (-75, -62, 6), (-75, GLAND_Y, 4)], 1.8),
         # 5 V: buck -> Orange Pi (USB-C) and -> switch
-        "cable_5v_opi": ("5v", [(BUCK_POS[0] + 6, BUCK_POS[1] + 10, 8), (32, -10, 12), (24, -30, 15)], 1.6),
+        "cable_5v_opi": ("5v", [(BUCK_POS[0] + 6, BUCK_POS[1] + 10, 8), (30, 3, 12), (24, -30, 15)], 1.6),
+        # 12 V: WAGO -> top fan (up beside the bracket post)
+        "cable_12v_fan_top": ("12v", [(w1[0] - 14, w1[1] + 6, 6), (46, -40, 14), (44, -30, FRAME_Z0 + 8),
+                                       (OPI_CX + 31, -30, TOPFAN_Z0 + 18)], 1.4),
         "cable_5v_switch": ("5v", [(BUCK_POS[0] + 6, BUCK_POS[1] + 30, 8), (SW_POS[0] + SWITCH[0] + 1, 30, 10)], 1.4),
         # Ethernet: 4 cameras -> switch (via left wall, above the intake fan)
         "cable_eth_cams": ("eth", [(-45, GLAND_Y, 4), (-45, GLAND_Y + 8, 10), (-88, -60, 20), (-88, -45, 70),
                                    (-88, 20, 70), (-88, 30, 20), (SW_POS[0] - 2, 30, 12)], 3.0),
-        # USB extension: Orange Pi -> 4G modem
-        "cable_usb_modem": ("usb", [(-40, -20, 22), (-40, 10, 40), (-40, PSU_Y0 - 8, 50)], 1.6),
         # Ethernet: uplink/spare gland -> Orange Pi
         "cable_eth_opi": ("eth", [(SW_POS[0] + 10, SW_POS[1], 12), (SW_POS[0] + 10, -2, 18), (-46, -20, 20)], 1.8),
     }
@@ -543,12 +607,14 @@ def build(with_cables=True):
         "lid": make_lid(),
         "gasket_tpu": make_gasket(),
         "opi_tray": make_opi_tray(),
+        "opi_fan_bracket": make_opi_fan_bracket(),
     }
     asm = cq.Assembly(name="controller_box")
     asm.add(printed["base"], name="base", color=C_BOX)
     asm.add(printed["lid"], name="lid", color=C_LID)
     asm.add(printed["gasket_tpu"], name="gasket_tpu", color=C_TPU)
     asm.add(printed["opi_tray"], name="opi_tray", color=C_TRAY)
+    asm.add(printed["opi_fan_bracket"], name="opi_fan_bracket", color=C_TRAY)
     comps = make_components()
     for k, (s, col) in comps.items():
         asm.add(s, name=k, color=col)
@@ -564,7 +630,7 @@ def clearance_report(printed, comps):
     names = list(comps)
     solids = {k: v[0].val() for k, v in comps.items()}
     for k in names:
-        for p in ("base", "lid", "opi_tray"):
+        for p in ("base", "lid", "opi_tray", "opi_fan_bracket"):
             v = solids[k].intersect(printed[p].val()).Volume()
             if v > 1.0 and not (k == "cable_glands" and p == "base"):
                 issues.append(f"{k} x {p}: {v:.0f} mm3")

@@ -18,6 +18,7 @@ Model parametrik CadQuery, solid B-rep **tanpa mesh**. File STEP bisa langsung d
 | `out/print/lid.step` | **Cetak:** tutup |
 | `out/print/gasket_tpu.step` | **Cetak (TPU):** gasket |
 | `out/print/opi_tray.step` | **Cetak:** tray Orange Pi |
+| `out/print/opi_fan_bracket.step` | **Cetak:** dudukan kipas di atas Orange Pi |
 
 ## Ukuran
 
@@ -37,8 +38,8 @@ Model parametrik CadQuery, solid B-rep **tanpa mesh**. File STEP bisa langsung d
 | TP-Link LS1005 | 83.6 × 45.7 × 22.8 | Cradle 4 sudut, diikat zip-tie |
 | Buck converter 12 V → 5 V | sekitar 65 × 40 × 22 | Cradle 4 sudut. Untuk Orange Pi (USB-C 5 V) dan switch (5 V 0.6 A). **Pakai minimal 5 V 6 A** |
 | 2× WAGO 221-415 | | Kantong di lantai, untuk distribusi 12 V (+) dan (−) |
-| Modem USB 4G LTE (uplink) | sekitar 95 × 32 × 13 | Ditempel velcro di muka depan PSU, disambung ke Orange Pi dengan kabel USB extension pendek. Antena internal modem tetap dapat sinyal karena box-nya plastik |
-| 2× kipas 60 × 60 × 37.5 | | **Intake** kiri bawah meniup ke Orange Pi. **Exhaust** kanan atas. Aliran udara menyilang diagonal melewati semua komponen |
+| Kipas ke-3, 60 × 60 × 37.5 | | **Tepat di atas Orange Pi**, meniup ke bawah ke heatsink. Dudukannya bracket cantilever dengan 2 tiang ramping di sisi kanan board, jadi aliran udara silang kiri→kanan tidak terhalang. Di bawahnya cukup pakai heatsink pasif (tinggi sampai 20 mm) |
+| 2× kipas dinding 60 × 60 × 37.5 | | **Intake** kiri bawah meniup ke Orange Pi. **Exhaust** kanan atas. Aliran udara menyilang diagonal melewati semua komponen |
 
 ## Anti air
 
@@ -69,15 +70,11 @@ Rute di dalam box (warna kabel sesuai preview):
 - **5 V (oranye):** dari buck ke USB-C Orange Pi dan ke jack DC switch.
 - **Ethernet (biru):** dari gland kamera, naik di dinding kiri **di atas** kipas intake, lalu turun ke port switch. Orange Pi tersambung ke switch dengan kabel pendek.
 
-- **USB (abu-abu):** dari Orange Pi ke modem 4G.
+- **12 V ke kipas atas:** dari WAGO naik di samping tiang bracket ke kipas di atas Orange Pi.
 
 ## Uplink internet
 
-LS1005 hanya punya 5 port, dan semuanya terpakai oleh 4 kamera + Orange Pi. Karena itu uplink dibuat lewat **modem USB 4G di Orange Pi**:
-
-- Orange Pi merekam keempat kamera ke **NVMe/SD lokal** (jadi NVR). Lewat 4G yang dikirim hanya event, notifikasi, dan live view saat dibuka. Kuota tetap hemat dan rekaman aman walaupun sinyal putus.
-- Kalau semua kamera di-stream terus-menerus ke cloud, butuh upload sekitar 16 Mbps atau lebih. Itu boros kuota 4G.
-- **Kalau di dekat tiang (kurang dari 100 m) ada internet kabel,** lebih baik pakai Ethernet. Ganti switch ke 8 port (ubah `SWITCH` di parameter) dan pakai gland 5 (cadangan) untuk kabel uplink.
+Uplink lewat **Wi-Fi bawaan Orange Pi**. Kelima port LS1005 dipakai untuk 4 kamera + Orange Pi. Box-nya plastik, jadi sinyal Wi-Fi bisa tembus. Tempatkan antena Wi-Fi jauh dari PSU, misalnya di dinding depan atau samping bagian atas. Kalau sinyal di tiang lemah, pasang antena eksternal lewat konektor bulkhead RP-SMA di gland cadangan (gland 5).
 
 ## Panduan cetak
 
@@ -86,14 +83,16 @@ LS1005 hanya punya 5 port, dan semuanya terpakai oleh 4 kamera + Orange Pi. Kare
 | base | Lantai di bed, bukaan ke atas | PLA dulu, nanti **ASA** atau PETG (lihat catatan PLA) | 0.2 mm, 4 dinding, infill 25 % gyroid, 5 lapis atas/bawah |
 | lid | **Permukaan atas di bed** | Sama dengan base | Sama dengan base |
 | gasket_tpu | Datar | TPU 95A | 100 % infill, kecepatan rendah |
-| opi_tray | Datar | PETG/ASA | 3 dinding |
+| opi_tray | Datar | Sama dengan base | 3 dinding |
+| opi_fan_bracket | **Terbalik** (frame kipas di bed, tiang ke atas) | Sama dengan base | 4 dinding, infill 40 % |
 
 - **Tidak perlu support.** Semua overhang (flange, atap cowl, anchor) sudah di-chamfer 45°. Lubang grill kipas dibuat berupa slot vertikal, jadi tidak ada lengkungan besar yang menggantung.
 - **Heat-set insert:**
   - 12× M4 (lubang Ø5.6, kedalaman 8) di flange untuk tutup
-  - 8× M3 (Ø4.2) untuk kipas
+  - 8× M3 (Ø4.2) untuk kipas dinding
   - 4× M3 untuk tray
-- **Baut:** M4 × 16 untuk tutup (kepala masuk counterbore), M3 × 45 untuk kipas (menembus badan kipas 37.5 mm), dan M2.5 untuk Orange Pi di tray.
+  - 2× M3 di lantai untuk kaki bracket kipas atas
+- **Baut:** M4 × 16 untuk tutup (kepala masuk counterbore), M3 × 45 untuk kipas (menembus badan kipas 37.5 mm, dipakai untuk ketiga kipas, kipas atas pakai mur), M3 × 8 untuk kaki bracket, dan M2.5 untuk Orange Pi di tray.
 - **Setelah cetak,** lapisi sambungan gland dengan O-ring bawaan gland. Kalau pakai PETG, cat dengan cat UV-resistant untuk pemakaian outdoor.
 
 ## Catatan PLA
@@ -122,7 +121,6 @@ Pakai **2 klem selang stainless** (hose clamp, lebar band sampai 14 mm, tebal sa
 |---|---|
 | Orange Pi 5 Ultra | 10–20 W |
 | LS1005 | 2 W |
-| 2 kipas 60 × 38 | 2–10 W (tergantung model) |
+| 3 kipas 60 × 38 | 3–15 W (tergantung model) |
 | 4 kamera DS-2DE2C400MWG-E (dari box ini) | 4 × 9 W = 36 W |
-| Modem USB 4G | 2–3 W |
 | **Total** | **sekitar 50–70 W, jadi PSU 12 V minimal 6–8 A** |
