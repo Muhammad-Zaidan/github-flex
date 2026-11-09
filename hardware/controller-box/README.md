@@ -1,119 +1,99 @@
-# Controller Box Anti Air (3D Print)
+# Controller Box + Hub Kamera di Atas Tiang (3D Print)
 
-Model parametrik CadQuery, solid B-rep **tanpa mesh**. File STEP bisa langsung dibuka di Bambu Studio, OrcaSlicer, PrusaSlicer, Fusion 360, atau FreeCAD.
+Model parametrik CadQuery, solid B-rep **tanpa mesh**. File STEP bisa langsung dibuka di Bambu Studio, OrcaSlicer, PrusaSlicer, Fusion 360, atau FreeCAD. File `.glb` hanya untuk preview 3D.
 
-![iso](renders/01_iso.png)
+![iso](renders/01_on_pole_iso.png)
 
-| Bawah (gland) | Belakang (mount) | Isi | Layout atas | Part cetak |
-|---|---|---|---|---|
-| ![](renders/02_bottom_glands.png) | ![](renders/03_back_mount.png) | ![](renders/04_open.png) | ![](renders/05_layout_top.png) | ![](renders/06_print_parts.png) |
+| Bawah | Isi | Layout atas |
+|---|---|---|
+| ![](renders/02_on_pole_low.png) | ![](renders/03_open.png) | ![](renders/04_layout_top.png) |
 
 ## File
 
 | File | Isi |
 |---|---|
 | `controller_box.py` | Sumber parametrik. Semua ukuran ada di bagian `Parameters` |
-| `out/controller_box_assembly.step` | Assembly lengkap: box, komponen, dan jalur kabel |
+| `out/controller_box_on_pole_assembly.step` | Assembly lengkap: tiang, hub, 4 kamera, box, komponen, dan kabel |
+| `out/controller_box_on_pole_preview.glb` | Preview 3D (bisa dibuka di HP/PC) |
 | `out/print/base.step` | **Cetak:** badan box |
 | `out/print/lid.step` | **Cetak:** tutup |
 | `out/print/gasket_tpu.step` | **Cetak (TPU):** gasket |
 | `out/print/opi_tray.step` | **Cetak:** tray Orange Pi |
 | `out/print/opi_fan_bracket.step` | **Cetak:** dudukan kipas di atas Orange Pi |
+| `out/print/camera_hub.step` | **Cetak:** hub tiang + dudukan 4 kamera + ruang kabel |
 
-## Ukuran
+## Susunan dari atas ke bawah
 
-| | |
-|---|---|
-| Interior | 200 × 170 × 110 mm |
-| Base (luas cetak) | 250 × 208 × 103 mm |
-| Lid (luas cetak) | 244 × 214 × 21 mm |
-| **Bed printer minimum** | **256 × 256 mm** (Bambu A1/P1/X1, Prusa XL, dll.) |
+1. **Box controller:** interior 200 × 200 × 110 mm, dibaut ke hub dengan 4 baut M5. Baut masuk dari bawah ke heat-set insert di dalam boss lantai. Lubangnya buntu, jadi lantai box tetap kedap.
+2. **Ruang kabel (chamber):** bagian atas hub, 168 × 168 mm. Semua cable gland di lantai box ada di dalam ruang ini, jadi terlindung dari hujan langsung.
+3. **Flare 45°:** bagian hub yang melebar dari sleeve ke chamber. Bisa dicetak tanpa support.
+4. **Dudukan kamera:** 4 pad di 4 sisi sleeve, masing-masing dengan **4 heat-set insert M4** sesuai pola lubang plat kamera (47 × 57). Di belakang tiap plat ada **lubang kabel Ø22**, jadi kabel kamera langsung masuk ke dalam hub lalu naik ke chamber.
+5. **Sleeve:** dimasukkan ke tiang **80 × 80** sedalam 80 mm, dan duduk di atas ujung tiang lewat 4 tonjolan penahan.
+6. **Kunci ke tiang:** **2 baut M8 tembus** (hub dan tiang dibor Ø8.5). Satu arah X di 25 mm dan satu arah Y di 58 mm di bawah ujung tiang, pakai mur nyloc dan ring.
+
+Tinggi total di atas ujung tiang 266 mm. Bentang kamera sekitar 434 mm.
+
+## Port tidak terhalang
+
+Setiap baris port punya **ruang kosong 30 mm** di depannya, dan ruang ini **dicek otomatis** setiap kali model di-generate. Kalau ada yang menghalangi, script akan menampilkan pesan `PORT BLOCKED`.
+
+| Port | Arah | Ruang kosong |
+|---|---|---|
+| Orange Pi, sisi pendek (USB 3.0/2.0, LAN 2.5G) | Menghadap depan | 30 mm, cukup untuk colokan + tekukan kabel |
+| Orange Pi, sisi panjang (USB-C power, HDMI out/in, audio) | Menghadap tengah box | 30 mm |
+| Switch LS1005 (5× RJ45 + DC) | Menghadap tengah box | 30 mm |
+| Terminal PSU | Ujung kiri | 25 mm |
+
+**Catatan:** posisi persis port Orange Pi 5 Ultra (port mana di sisi mana) belum ada di dokumen publik yang saya temukan. Model mengikuti tata letak ala Raspberry Pi: USB/LAN di satu sisi pendek, HDMI/USB-C di satu sisi panjang. **Cek di board Anda.** Kalau ternyata terbalik, tray bisa diputar 180°, dan posisinya bisa diubah di `OPI_TRAY`.
 
 ## Isi box
 
-| Komponen | Ukuran | Posisi |
-|---|---|---|
-| PSU 12 V | 128 × 97.5 × 30 | Berdiri di sisi panjangnya, menempel dinding belakang. Dijepit 2 U-channel di lantai dan 2 pad penahan di bawah tutup (tambahkan foam 2 mm) |
-| Orange Pi 5 Ultra | 89 × 57 | Di atas **tray dengan lubang slot**, jadi posisi lubang board bisa disetel (jarak lubang 58–82 × 49–50 mm). Posisi lubang board ini belum dipublikasikan, cek di board aslinya |
-| TP-Link LS1005 | 83.6 × 45.7 × 22.8 | Cradle 4 sudut, diikat zip-tie |
-| Buck converter 12 V → 5 V | sekitar 65 × 40 × 22 | Cradle 4 sudut. Untuk Orange Pi (USB-C 5 V) dan switch (5 V 0.6 A). **Pakai minimal 5 V 6 A** |
-| 2× WAGO 221-415 | | Kantong di lantai, untuk distribusi 12 V (+) dan (−) |
-| Kipas ke-3, 60 × 60 × 37.5 | | **Tepat di atas Orange Pi**, meniup ke bawah ke heatsink. Dudukannya bracket cantilever dengan 2 tiang ramping di sisi kanan board, jadi aliran udara silang kiri→kanan tidak terhalang. Di bawahnya cukup pakai heatsink pasif (tinggi sampai 20 mm) |
-| 2× kipas dinding 60 × 60 × 37.5 | | **Intake** kiri bawah meniup ke Orange Pi. **Exhaust** kanan atas. Aliran udara menyilang diagonal melewati semua komponen |
+| Komponen | Posisi |
+|---|---|
+| PSU 12 V 128 × 97.5 × 30 | Berdiri di dinding belakang, terminal di ujung kiri |
+| Orange Pi 5 Ultra | Kiri-tengah, di tray slot (jarak lubang bisa disetel 58–82 × 49–50) |
+| Kipas atas 60 × 60 × 37.5 | Tepat di atas Orange Pi, meniup ke bawah. Tiang bracket ada di **belakang** board (sisi tanpa port) |
+| Kipas intake 60 × 60 × 37.5 | Dinding kiri, meniup ke Orange Pi |
+| Kipas exhaust 60 × 60 × 37.5 | Dinding kanan atas |
+| TP-Link LS1005 | Sisi kanan, port menghadap ke dalam |
+| Buck 12 V → 5 V (min. 5 V 6 A) | Berdiri di belakang Orange Pi |
+| 2× WAGO 221-415 | Di bawah kipas exhaust |
+| Gland | 4× M16 kamera (depan), 1× M16 cadangan, 1× M20 AC (dari dalam tiang) |
+
+Uplink internet lewat **Wi-Fi Orange Pi**. Box plastik tidak menghalangi sinyal.
 
 ## Anti air
 
-1. **Tutup:** sambungan tongue-and-groove dengan **gasket TPU**, ditambah **skirt** tutup yang menutupi flange dari luar. Jadi ada dua lapis penghalang, dikencangkan 12 baut M4.
-2. **Kipas:** udara keluar-masuk lewat **rain cowl** yang hanya terbuka **ke bawah**. Air hujan tidak bisa masuk langsung. Di dalam cowl ada slot untuk lembaran filter (stainless mesh atau busa filter, tebal 1.6 mm) supaya serangga dan debu tertahan.
-3. **Kabel:** semua masuk dari **lantai** lewat cable gland. Air yang mengalir di kabel tidak akan menetes masuk.
+- **Tutup:** tongue-and-groove + **gasket TPU** + skirt yang menutupi flange dari luar, dikencangkan 12 baut M4.
+- **Kipas:** udara lewat **rain cowl yang terbuka ke bawah**, dengan slot filter.
+- **Kabel:** semua masuk dari bawah lewat gland, di dalam chamber hub.
+- Karena ada kipas, box ini **tahan hujan dan cipratan (sekitar IPX4)**, bukan kedap total.
 
-Catatan jujur: karena ada kipas, box ini **tahan hujan dan cipratan (sekitar IPX4)**, bukan kedap total (IP67). Pasang dengan cowl menghadap ke bawah, seperti di model.
+## Panduan cetak (bed 256 × 256)
 
-## Jalur kabel
-
-Semua kabel masuk dari lantai depan. Gland dari kiri ke kanan:
-
-| Gland | Ukuran | Fungsi |
-|---|---|---|
-| 1–4 | M16 | Kamera 1–4 (Ethernet + 12 V). Pakai insert 2 lubang |
-| 5 | M16 | Uplink/cadangan |
-| 6 | M20 | AC masuk ke PSU |
-
-Rute di dalam box (warna kabel sesuai preview):
-
-- **AC (hitam):** gland M20, naik melewati buck, lalu ke terminal AC PSU di sisi kanan.
-- **12 V (merah):** dari PSU ke WAGO. Dari WAGO bercabang ke:
-  - kipas exhaust (dekat)
-  - kipas intake (melalui jalur di dinding depan, diikat ke 4 anchor zip-tie)
-  - input buck converter
-  - kamera, keluar lewat gland 1–4
-- **5 V (oranye):** dari buck ke USB-C Orange Pi dan ke jack DC switch.
-- **Ethernet (biru):** dari gland kamera, naik di dinding kiri **di atas** kipas intake, lalu turun ke port switch. Orange Pi tersambung ke switch dengan kabel pendek.
-
-- **12 V ke kipas atas:** dari WAGO naik di samping tiang bracket ke kipas di atas Orange Pi.
-
-## Uplink internet
-
-Uplink lewat **Wi-Fi bawaan Orange Pi**. Kelima port LS1005 dipakai untuk 4 kamera + Orange Pi. Box-nya plastik, jadi sinyal Wi-Fi bisa tembus. Tempatkan antena Wi-Fi jauh dari PSU, misalnya di dinding depan atau samping bagian atas. Kalau sinyal di tiang lemah, pasang antena eksternal lewat konektor bulkhead RP-SMA di gland cadangan (gland 5).
-
-## Panduan cetak
-
-| Part | Orientasi | Material | Setting |
+| Part | Ukuran cetak | Orientasi | Setting |
 |---|---|---|---|
-| base | Lantai di bed, bukaan ke atas | PLA dulu, nanti **ASA** atau PETG (lihat catatan PLA) | 0.2 mm, 4 dinding, infill 25 % gyroid, 5 lapis atas/bawah |
-| lid | **Permukaan atas di bed** | Sama dengan base | Sama dengan base |
-| gasket_tpu | Datar | TPU 95A | 100 % infill, kecepatan rendah |
-| opi_tray | Datar | Sama dengan base | 3 dinding |
-| opi_fan_bracket | **Terbalik** (frame kipas di bed, tiang ke atas) | Sama dengan base | 4 dinding, infill 40 % |
+| base | 250 × 238 × 103 | Lantai di bed | 4 dinding, 25 % gyroid, 5 lapis atas/bawah |
+| lid | 244 × 244 × 21 | Permukaan atas di bed | Sama dengan base |
+| camera_hub | 192 × 192 × 230 | Sleeve di bed (tegak) | **6 dinding, 40–50 % gyroid**. Part ini menahan 4 kamera (2.4 kg) |
+| opi_fan_bracket | | Terbalik (frame di bed) | 4 dinding, 40 % |
+| opi_tray | | Datar | 3 dinding |
+| gasket_tpu | | Datar | TPU 95A, 100 % |
 
-- **Tidak perlu support.** Semua overhang (flange, atap cowl, anchor) sudah di-chamfer 45°. Lubang grill kipas dibuat berupa slot vertikal, jadi tidak ada lengkungan besar yang menggantung.
-- **Heat-set insert:**
-  - 12× M4 (lubang Ø5.6, kedalaman 8) di flange untuk tutup
-  - 8× M3 (Ø4.2) untuk kipas dinding
-  - 4× M3 untuk tray
-  - 2× M3 di lantai untuk kaki bracket kipas atas
-- **Baut:** M4 × 16 untuk tutup (kepala masuk counterbore), M3 × 45 untuk kipas (menembus badan kipas 37.5 mm, dipakai untuk ketiga kipas, kipas atas pakai mur), M3 × 8 untuk kaki bracket, dan M2.5 untuk Orange Pi di tray.
-- **Setelah cetak,** lapisi sambungan gland dengan O-ring bawaan gland. Kalau pakai PETG, cat dengan cat UV-resistant untuk pemakaian outdoor.
+- **Tidak perlu support.** Semua overhang sudah dibuat 45°, dan lubang horizontal (baut M8, lubang kabel kamera) berbentuk teardrop.
+- **Material:** PLA boleh untuk uji pasang. Untuk pemakaian di luar, terutama **camera_hub** yang menahan beban, pakai **PETG atau ASA**, karena PLA bisa melunak di sekitar 55–60 °C dan pelan-pelan berubah bentuk menahan beban.
 
-## Catatan PLA
+### Heat-set insert dan baut
 
-PLA **bisa dipakai untuk versi pertama**, misalnya untuk tes pas atau prototipe. Model tidak perlu diubah karena PLA lebih mudah dicetak daripada ASA. Tapi untuk dipasang permanen di luar, PLA punya tiga kelemahan:
-
-1. **Melunak di sekitar 55–60 °C.** Box gelap yang dijemur matahari ditambah panas PSU bisa melewati suhu ini. Akibatnya box bisa melengkung, dan tekanan gasket jadi berkurang sehingga box tidak kedap lagi.
-2. **Rapuh terkena UV** setelah beberapa bulan.
-3. **Creep (berubah bentuk pelan-pelan)** di titik baut dan heat-set insert.
-
-Kalau tetap memakai PLA di luar:
-- Cetak warna **putih atau abu-abu muda**, jangan hitam, supaya suhunya bisa beberapa belas derajat lebih rendah.
-- Pakai 5 dinding dan cat dengan cat semprot UV-resistant.
-- Pasang di sisi tiang yang teduh.
-- Ganti ke **ASA** (paling tahan outdoor) atau **PETG** (gampang dicari dan cukup bagus) begitu tersedia.
-
-Gasket tetap dicetak pakai **TPU**.
-
-## Pemasangan di tiang
-
-Pakai **2 klem selang stainless** (hose clamp, lebar band sampai 14 mm, tebal sampai 4 mm). Band dimasukkan lewat slot di 2 rail belakang, ada 2 slot per rail, jadi bisa 2 klem (atas dan bawah). Jarak antar rail 102 mm. Tiang kotak sampai 100 mm (misalnya 80 × 80) masuk di antara rail dan menempel rata ke dinding box. Tiang bulat sampai sekitar Ø100 mm juga bisa. Pilih ukuran klem sesuai keliling tiang ditambah sekitar 40 mm. Pasang box dengan **gland menghadap ke bawah**.
+| Lokasi | Insert | Baut |
+|---|---|---|
+| Flange box (tutup) | 12× M4 | M4 × 16 |
+| Kipas dinding | 8× M3 | M3 × 45 |
+| Kipas atas | | 4× M3 × 45 + mur |
+| Tray + kaki bracket | 6× M3 | M3 × 8 |
+| Lantai box (ke hub) | 4× M5 (dari bawah) | M5 × 20 + ring |
+| Pad kamera di hub | 16× M4 | M4 × 12 |
+| Kunci ke tiang | | 2× M8 × 110 + mur nyloc + ring |
 
 ## Daya (perkiraan)
 
@@ -121,6 +101,6 @@ Pakai **2 klem selang stainless** (hose clamp, lebar band sampai 14 mm, tebal sa
 |---|---|
 | Orange Pi 5 Ultra | 10–20 W |
 | LS1005 | 2 W |
-| 3 kipas 60 × 38 | 3–15 W (tergantung model) |
-| 4 kamera DS-2DE2C400MWG-E (dari box ini) | 4 × 9 W = 36 W |
-| **Total** | **sekitar 50–70 W, jadi PSU 12 V minimal 6–8 A** |
+| 3 kipas 60 × 38 | 3–15 W |
+| 4 kamera (12 V, maks. 9 W) | 36 W |
+| **Total** | **sekitar 50–75 W, jadi PSU 12 V minimal 8 A** |
