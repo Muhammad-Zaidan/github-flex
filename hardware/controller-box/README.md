@@ -13,7 +13,8 @@ Model parametrik CadQuery, solid B-rep **tanpa mesh**. File STEP bisa langsung d
 | File | Isi |
 |---|---|
 | `controller_box.py` | Sumber parametrik. Semua ukuran ada di bagian `Parameters` |
-| `out/controller_box_on_pole_assembly.step` | Assembly lengkap: tiang, hub, 4 kamera, box, komponen, dan kabel |
+| `out/controller_box_on_pole_assembly.step` | **Assembly utama**, **Y-up** (Fusion 360, SolidWorks, Blender). Pivot di tengah dasar |
+| `out/controller_box_on_pole_assembly_Zup.step` | Assembly yang sama, **Z-up** (FreeCAD, Onshape, Inventor, Bambu Studio). Pivot di tengah dasar |
 | `out/controller_box_on_pole_preview.glb` | Preview 3D (bisa dibuka di HP/PC) |
 | `out/print/base.step` | **Cetak:** badan box |
 | `out/print/lid.step` | **Cetak:** tutup |

@@ -725,7 +725,17 @@ def main():
     out = os.path.join(HERE, "out")
     os.makedirs(os.path.join(out, "print"), exist_ok=True)
     asm, printed, comps, cables = build()
-    asm.export(os.path.join(out, "controller_box_on_pole_assembly.step"))
+    # Main assembly: pivot at the bottom centre (Z=0 / Y=0 at the lowest point).
+    #   *_assembly.step       Y-up (Fusion 360, SolidWorks, Blender, Unity)
+    #   *_assembly_Zup.step   Z-up (FreeCAD, Onshape, Bambu Studio, Inventor)
+    lift = cq.Location((0, 0, POLE_LEN))
+    to_yup = cq.Location((0, 0, 0), (1, 0, 0), -90)      # Z -> Y, front (-Y) -> +Z
+    for name, frame in (("controller_box_on_pole_assembly_Zup.step", lift),
+                        ("controller_box_on_pole_assembly.step", to_yup * lift)):
+        a = cq.Assembly(name="controller_box_on_pole")
+        for ch in asm.children:
+            a.add(ch.obj, name=ch.name, color=ch.color, loc=frame * ch.loc)
+        a.export(os.path.join(out, name))
     for name, wp in printed.items():
         cq.exporters.export(wp, os.path.join(out, "print", f"{name}.step"))
     issues = clearance_report(printed, comps)
