@@ -37,6 +37,7 @@ Model parametrik CadQuery, solid B-rep **tanpa mesh**. File STEP bisa langsung d
 | TP-Link LS1005 | 83.6 × 45.7 × 22.8 | Cradle 4 sudut, diikat zip-tie |
 | Buck converter 12 V → 5 V | sekitar 65 × 40 × 22 | Cradle 4 sudut. Untuk Orange Pi (USB-C 5 V) dan switch (5 V 0.6 A). **Pakai minimal 5 V 6 A** |
 | 2× WAGO 221-415 | | Kantong di lantai, untuk distribusi 12 V (+) dan (−) |
+| Modem USB 4G LTE (uplink) | sekitar 95 × 32 × 13 | Ditempel velcro di muka depan PSU, disambung ke Orange Pi dengan kabel USB extension pendek. Antena internal modem tetap dapat sinyal karena box-nya plastik |
 | 2× kipas 60 × 60 × 37.5 | | **Intake** kiri bawah meniup ke Orange Pi. **Exhaust** kanan atas. Aliran udara menyilang diagonal melewati semua komponen |
 
 ## Anti air
@@ -68,14 +69,22 @@ Rute di dalam box (warna kabel sesuai preview):
 - **5 V (oranye):** dari buck ke USB-C Orange Pi dan ke jack DC switch.
 - **Ethernet (biru):** dari gland kamera, naik di dinding kiri **di atas** kipas intake, lalu turun ke port switch. Orange Pi tersambung ke switch dengan kabel pendek.
 
-**Perhatian:** LS1005 hanya punya **5 port**. 4 kamera + Orange Pi = 5 port, jadi **tidak ada port tersisa untuk uplink**. Pilihannya: uplink lewat Wi-Fi Orange Pi, atau ganti ke switch 8 port (ubah `SWITCH` di parameter).
+- **USB (abu-abu):** dari Orange Pi ke modem 4G.
+
+## Uplink internet
+
+LS1005 hanya punya 5 port, dan semuanya terpakai oleh 4 kamera + Orange Pi. Karena itu uplink dibuat lewat **modem USB 4G di Orange Pi**:
+
+- Orange Pi merekam keempat kamera ke **NVMe/SD lokal** (jadi NVR). Lewat 4G yang dikirim hanya event, notifikasi, dan live view saat dibuka. Kuota tetap hemat dan rekaman aman walaupun sinyal putus.
+- Kalau semua kamera di-stream terus-menerus ke cloud, butuh upload sekitar 16 Mbps atau lebih. Itu boros kuota 4G.
+- **Kalau di dekat tiang (kurang dari 100 m) ada internet kabel,** lebih baik pakai Ethernet. Ganti switch ke 8 port (ubah `SWITCH` di parameter) dan pakai gland 5 (cadangan) untuk kabel uplink.
 
 ## Panduan cetak
 
 | Part | Orientasi | Material | Setting |
 |---|---|---|---|
-| base | Lantai di bed, bukaan ke atas | **ASA** (tahan UV) atau PETG | 0.2 mm, 4 dinding, infill 25 % gyroid, 5 lapis atas/bawah |
-| lid | **Permukaan atas di bed** | ASA/PETG | Sama dengan base |
+| base | Lantai di bed, bukaan ke atas | PLA dulu, nanti **ASA** atau PETG (lihat catatan PLA) | 0.2 mm, 4 dinding, infill 25 % gyroid, 5 lapis atas/bawah |
+| lid | **Permukaan atas di bed** | Sama dengan base | Sama dengan base |
 | gasket_tpu | Datar | TPU 95A | 100 % infill, kecepatan rendah |
 | opi_tray | Datar | PETG/ASA | 3 dinding |
 
@@ -85,8 +94,27 @@ Rute di dalam box (warna kabel sesuai preview):
   - 8× M3 (Ø4.2) untuk kipas
   - 4× M3 untuk tray
 - **Baut:** M4 × 16 untuk tutup (kepala masuk counterbore), M3 × 45 untuk kipas (menembus badan kipas 37.5 mm), dan M2.5 untuk Orange Pi di tray.
-- **Mount:** 2 rail di belakang punya slot untuk **klem selang/stainless band** (lebar sampai 14 mm, untuk tiang) dan lubang M6 untuk dinding.
 - **Setelah cetak,** lapisi sambungan gland dengan O-ring bawaan gland. Kalau pakai PETG, cat dengan cat UV-resistant untuk pemakaian outdoor.
+
+## Catatan PLA
+
+PLA **bisa dipakai untuk versi pertama**, misalnya untuk tes pas atau prototipe. Model tidak perlu diubah karena PLA lebih mudah dicetak daripada ASA. Tapi untuk dipasang permanen di luar, PLA punya tiga kelemahan:
+
+1. **Melunak di sekitar 55–60 °C.** Box gelap yang dijemur matahari ditambah panas PSU bisa melewati suhu ini. Akibatnya box bisa melengkung, dan tekanan gasket jadi berkurang sehingga box tidak kedap lagi.
+2. **Rapuh terkena UV** setelah beberapa bulan.
+3. **Creep (berubah bentuk pelan-pelan)** di titik baut dan heat-set insert.
+
+Kalau tetap memakai PLA di luar:
+- Cetak warna **putih atau abu-abu muda**, jangan hitam, supaya suhunya bisa beberapa belas derajat lebih rendah.
+- Pakai 5 dinding dan cat dengan cat semprot UV-resistant.
+- Pasang di sisi tiang yang teduh.
+- Ganti ke **ASA** (paling tahan outdoor) atau **PETG** (gampang dicari dan cukup bagus) begitu tersedia.
+
+Gasket tetap dicetak pakai **TPU**.
+
+## Pemasangan di tiang
+
+Pakai **2 klem selang stainless** (hose clamp, lebar band sampai 14 mm, tebal sampai 4 mm). Band dimasukkan lewat slot di 2 rail belakang, ada 2 slot per rail, jadi bisa 2 klem (atas dan bawah). Jarak antar rail 102 mm. Tiang kotak sampai 100 mm (misalnya 80 × 80) masuk di antara rail dan menempel rata ke dinding box. Tiang bulat sampai sekitar Ø100 mm juga bisa. Pilih ukuran klem sesuai keliling tiang ditambah sekitar 40 mm. Pasang box dengan **gland menghadap ke bawah**.
 
 ## Daya (perkiraan)
 
@@ -96,4 +124,5 @@ Rute di dalam box (warna kabel sesuai preview):
 | LS1005 | 2 W |
 | 2 kipas 60 × 38 | 2–10 W (tergantung model) |
 | 4 kamera DS-2DE2C400MWG-E (dari box ini) | 4 × 9 W = 36 W |
+| Modem USB 4G | 2–3 W |
 | **Total** | **sekitar 50–70 W, jadi PSU 12 V minimal 6–8 A** |

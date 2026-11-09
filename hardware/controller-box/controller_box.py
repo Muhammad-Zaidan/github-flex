@@ -12,6 +12,7 @@ Contents
   - 12 V -> 5 V buck converter (for the Orange Pi and the switch)
   - 2x 60 x 60 x 37.5 mm fans: intake low-left, exhaust high-right
   - WAGO 221 distribution blocks
+  - USB 4G LTE modem (uplink) on the PSU face
   - 6 cable glands in the floor (5x M16, 1x M20 for AC)
 
 Weather protection
@@ -76,6 +77,7 @@ OPI_COOLER_H = 20.0
 SWITCH = (83.6, 45.7, 22.8)
 BUCK = (65.0, 40.0, 22.0)
 WAGO = (31.0, 19.0, 8.5)       # WAGO 221-415 lying flat
+MODEM = (95.0, 13.0, 32.0)     # USB 4G LTE dongle envelope (x, y, z), velcro on PSU face
 
 GLANDS = [(-75, "M16"), (-45, "M16"), (-15, "M16"), (15, "M16"), (45, "M16"), (75, "M20")]
 GLAND_Y = -72.0
@@ -92,6 +94,7 @@ C_SW = cq.Color(0.95, 0.95, 0.95)
 C_FAN = cq.Color(0.10, 0.10, 0.11)
 C_BUCK = cq.Color(0.10, 0.25, 0.55)
 C_WAGO = cq.Color(0.55, 0.62, 0.70)
+C_MODEM = cq.Color(0.92, 0.92, 0.90)
 C_GLAND = cq.Color(0.20, 0.20, 0.20)
 C_TRAY = cq.Color(0.30, 0.31, 0.33)
 CABLE_C = {
@@ -99,6 +102,7 @@ CABLE_C = {
     "12v": cq.Color(0.80, 0.10, 0.10),
     "5v": cq.Color(0.95, 0.55, 0.05),
     "eth": cq.Color(0.10, 0.35, 0.85),
+    "usb": cq.Color(0.55, 0.55, 0.58),
 }
 
 # Derived
@@ -451,6 +455,9 @@ def make_components():
     buck = buck.union(box(bx0 + 8, bx0 + 30, by0 + 8, by0 + 32, 3.6, 2 + BUCK[2]))
     c["buck_12v_to_5v"] = (buck, C_BUCK)
     c["psu_12v"] = (box(-PSU[0] / 2, PSU[0] / 2, PSU_Y0, PSU_Y0 + PSU[2], 2, 2 + PSU[1]), C_PSU)
+    # USB 4G modem, velcro'd to the PSU front face (plastic box = antenna works inside)
+    c["usb_4g_modem"] = (box(-45, -45 + MODEM[0], PSU_Y0 - 1 - MODEM[1], PSU_Y0 - 1, 42, 42 + MODEM[2])
+                         .edges("|Y").fillet(4), C_MODEM)
     for i, (x, y) in enumerate(WAGO_POS):
         c[f"wago_221_{i + 1}"] = (box(x, x + WAGO[0], y, y + WAGO[1], 1.5, 1.5 + WAGO[2]), C_WAGO)
 
@@ -518,6 +525,8 @@ def make_cables():
         # Ethernet: 4 cameras -> switch (via left wall, above the intake fan)
         "cable_eth_cams": ("eth", [(-45, GLAND_Y, 4), (-45, GLAND_Y + 8, 10), (-88, -60, 20), (-88, -45, 70),
                                    (-88, 20, 70), (-88, 30, 20), (SW_POS[0] - 2, 30, 12)], 3.0),
+        # USB extension: Orange Pi -> 4G modem
+        "cable_usb_modem": ("usb", [(-40, -20, 22), (-40, 10, 40), (-40, PSU_Y0 - 8, 50)], 1.6),
         # Ethernet: uplink/spare gland -> Orange Pi
         "cable_eth_opi": ("eth", [(SW_POS[0] + 10, SW_POS[1], 12), (SW_POS[0] + 10, -2, 18), (-46, -20, 20)], 1.8),
     }
