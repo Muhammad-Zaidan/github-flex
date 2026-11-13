@@ -28,13 +28,17 @@
         <span class="step">1</span>
         <div>
           <h2>Contoh format</h2>
-          <p class="muted">Template kampus, jurnal, atau tulisan orang lain yang formatnya sudah benar (.docx).</p>
+          <p class="muted">Template kampus, jurnal, atau tulisan orang lain yang formatnya sudah benar (.docx atau .pdf).</p>
         </div>
       </div>
+      <div class="library hidden" id="library">
+        <p class="small muted">Format tersimpan</p>
+        <div class="lib-list" id="libList"></div>
+      </div>
       <label class="drop" id="tplDrop">
-        <input type="file" id="tplFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+        <input type="file" id="tplFile" accept=".docx,.pdf,.doc,.odt,.rtf" hidden>
         <span class="drop-icon" aria-hidden="true">⇪</span>
-        <span class="drop-text"><b>Pilih atau seret berkas .docx</b><small>Format dipelajari dari isi dokumen ini</small></span>
+        <span class="drop-text"><b>Pilih atau seret berkas .docx / .pdf</b><small>Format dipelajari dari isi dokumen ini</small></span>
       </label>
       <div id="tplInfo" class="hidden">
         <div class="file-row">
@@ -42,6 +46,10 @@
           <button class="link" id="tplChange" type="button">Ganti</button>
         </div>
         <p class="muted small" id="tplPage"></p>
+        <form class="save-row" id="saveForm">
+          <input type="text" id="saveName" maxlength="80" placeholder="Nama format, mis. Laporan TA" aria-label="Nama format">
+          <button class="secondary" type="submit" id="saveBtn">Simpan format</button>
+        </form>
         <div class="learned" id="tplRoles"></div>
         <details class="inspect" id="tplInspect">
           <summary>Periksa deteksi pada contoh <span class="muted small">(ubah jika ada yang keliru)</span></summary>
@@ -56,12 +64,12 @@
         <span class="step">2</span>
         <div>
           <h2>Naskah</h2>
-          <p class="muted">Tempel teks mentah, atau unggah .docx yang formatnya berantakan.</p>
+          <p class="muted">Tempel teks mentah, atau unggah .docx/.pdf (format apa pun, isinya yang dipakai).</p>
         </div>
       </div>
       <div class="tabs" role="tablist">
         <button role="tab" class="tab active" data-tab="text" aria-selected="true">Ketik / tempel</button>
-        <button role="tab" class="tab" data-tab="file" aria-selected="false">Unggah .docx</button>
+        <button role="tab" class="tab" data-tab="file" aria-selected="false">Unggah berkas</button>
       </div>
       <div class="tab-pane" data-pane="text">
         <textarea id="text" spellcheck="false" placeholder="BAB I&#10;PENDAHULUAN&#10;&#10;1.1 Latar Belakang&#10;Tulis atau tempel isi di sini. Setiap baris menjadi satu paragraf.&#10;&#10;DAFTAR PUSTAKA&#10;Nama, A. (2024). Judul buku. Penerbit."></textarea>
@@ -81,14 +89,15 @@
       </div>
       <div class="tab-pane hidden" data-pane="file">
         <label class="drop" id="docDrop">
-          <input type="file" id="docFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+          <input type="file" id="docFile" accept=".docx,.pdf,.doc,.odt,.rtf" hidden>
           <span class="drop-icon" aria-hidden="true">⇪</span>
-          <span class="drop-text"><b>Pilih atau seret naskah .docx</b><small>Gambar, tabel, persamaan, tebal/miring ikut dibawa</small></span>
+          <span class="drop-text"><b>Pilih atau seret naskah .docx / .pdf</b><small>Gambar, tabel, persamaan, catatan kaki ikut dibawa</small></span>
         </label>
         <div class="file-row hidden" id="docRow">
           <span class="file-name" id="docName"></span>
           <button class="link" id="docClear" type="button">Hapus</button>
         </div>
+        <label class="check file-opt"><input type="checkbox" id="skipFront" checked> Lewati halaman awal <span class="muted">(sampul, pengesahan, kata pengantar, daftar isi)</span></label>
       </div>
     </article>
 
@@ -142,7 +151,7 @@
   <div class="pdf-head"><b>Cara pakai Cetakan</b><button class="ghost" id="helpClose" type="button">Tutup</button></div>
   <div class="help-body">
     <ol>
-      <li><b>Unggah satu contoh utuh</b> (.docx): template dari kampus, panduan jurnal, atau tulisan orang lain yang formatnya sudah sesuai. Cetakan mempelajari huruf, ukuran, perataan, menjorok, spasi, jarak antar-bagian, penomoran bab/subbab, pemisah halaman, gaya tabel, dan ukuran kertas &amp; margin.</li>
+      <li><b>Unggah satu contoh utuh</b> (.docx atau .pdf), lalu tekan <i>Simpan format</i> agar lain kali tinggal klik namanya: template dari kampus, panduan jurnal, atau tulisan orang lain yang formatnya sudah sesuai. Cetakan mempelajari huruf, ukuran, perataan, menjorok, spasi, jarak antar-bagian, penomoran bab/subbab, pemisah halaman, gaya tabel, dan ukuran kertas &amp; margin.</li>
       <li><b>Masukkan naskah</b>: tempel teks mentah atau unggah .docx berantakan. Struktur (bab, subbab, daftar, keterangan gambar, daftar pustaka, abstrak, kata kunci) dikenali otomatis tanpa AI.</li>
       <li><b>Periksa pratinjau</b>. Jika ada yang keliru, klik paragrafnya lalu pilih peran yang benar. Kesalahan deteksi pada contoh juga bisa diperbaiki di bagian “Periksa deteksi pada contoh”.</li>
       <li><b>Unduh</b> sebagai Word, PDF, ODT, RTF, HTML, Markdown, LaTeX, EPUB, atau teks.</li>

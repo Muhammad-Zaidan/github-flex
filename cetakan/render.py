@@ -160,7 +160,8 @@ def strip_number(segs):
         return cut(segs, lead + m.start(2)), [int(g) if g.isdigit() else from_roman(g)]
     m = NUM_HEAD_RE.match(t)
     if m:
-        return cut(segs, lead + m.start(3)), [int(x) for x in m.group(1).split(".")]
+        return cut(segs, lead + m.start(3)), [int(x) if x.isdigit() else from_roman(x)
+                                              for x in m.group(1).split(".")]
     m = ROMAN_HEAD_RE.match(t)
     if m:
         return cut(segs, lead + m.start(2)), [from_roman(m.group(1))]
@@ -196,6 +197,7 @@ class Renderer:
         self.first = True
         self.prev_role = None
         self.cur = None
+        self.ctx = None       # judul terakhir (bab/h1/h2/h3) untuk gaya bergantung konteks
         self.origin = {}      # elemen keluaran → (indeks blok naskah, peran gaya)
         ref = next((r for r in self.body.iter(qn("w:r")) if r.find(qn("w:footnoteReference")) is not None), None)
         ref_rpr = ref.find(qn("w:rPr")) if ref is not None else None
@@ -331,6 +333,9 @@ class Renderer:
     # ---- gaya ----------------------------------------------------------
     def style(self, role):
         r = resolve(role, self.available)
+        ctx_rs = self.profile.ctx_styles.get((r, self.ctx)) if r else None
+        if ctx_rs is not None:
+            return ctx_rs, r
         return (self.profile.styles.get(r) if r else None), (r or role)
 
     def numbering(self):
@@ -358,6 +363,11 @@ class Renderer:
         exact = self.profile.exact.get(key)
         if exact is not None and exact.role == "bab_nama":
             exact = None    # nama bab dicetak lewat bab(), bersama baris "BAB n"
+        if exact is not None and exact.role != resolve(role, self.available) \
+                and not UNNUMBERED_RE.match(seg_text(segs).strip()):
+            # judul bernama sama tetapi beda tingkat (mis. subbab "Latar Belakang" vs bab
+            # "LATAR BELAKANG"): tingkat naskah dipertahankan
+            exact = None
         rs, used = (exact, exact.role) if exact else self.style(role)
         if role == "bab" or used == "bab":
             return self.bab(block, segs, rs, used, key)
@@ -384,8 +394,10 @@ class Renderer:
                 spec = rs.spec
                 c = self.counters
                 if spec[0] == "d":
-                    parts = [max(c[j], 1) for j in range(max(0, lvl - spec[1] + 1), lvl + 1)]
-                    prefix = ".".join(map(str, parts)) + spec[2]
+                    parts = [str(max(c[j], 1)) for j in range(max(0, lvl - spec[1] + 1), lvl + 1)]
+                    if len(spec) > 3 and spec[3]:
+                        parts[0] = roman(int(parts[0]))     # I.1, II.2.1
+                    prefix = ".".join(parts) + spec[2]
                 elif spec[0] == "R":
                     prefix = roman(c[lvl]) + "."
                 elif spec[0] == "A":
@@ -432,7 +444,9 @@ class Renderer:
                     roman_style = not mm.group(1).isdigit()
                     break
         label = f"BAB {roman(num) if roman_style else num}" if num else None
-        if mode == "auto" or used != "bab":
+        if mode == "plain":
+            self.para(rs, name or [Seg(label or "")], used)
+        elif mode == "auto" or used != "bab":
             self.para(rs, name or [Seg(label or "")], used, num_off=unnumbered and bool(rs and rs.auto_num))
         elif unnumbered or label is None:
             self.para(rs, name or [], used)
@@ -448,7 +462,7 @@ class Renderer:
     # ---- daftar ----------------------------------------------------------
     def list_item(self, block, segs, state):
         kind = list_kind(block.item)
-        rs = self.profile.lists.get(kind)
+        rs = self.profile.ctx_lists.get((kind, self.ctx)) or self.profile.lists.get(kind)
         variant = rs is None
         if rs is None:
             rs = next(iter(self.profile.lists.values()), None) or self.style("daftar")[0]
@@ -678,6 +692,7 @@ class Renderer:
             if shift:
                 role = {"h1": "h2", "h2": "h3"}.get(role, role)
             if role in ("bab", "bab_nama", "h1", "h2", "h3"):
+                self.ctx = "bab" if role in ("bab", "bab_nama") else role
                 if role == "bab_nama":
                     rs, used = self.style("bab_nama")
                     self.para(rs, apply_case(rs, segs), used)

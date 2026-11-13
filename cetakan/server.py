@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import __version__
-from .export import FORMATS, ExportError, available, convert
+from .export import FORMATS, ExportError, available, convert, office_to_docx
 from .reader import parse_docx, parse_text
 from .preview import build as build_preview
 from .render import Renderer
@@ -55,14 +55,27 @@ app = FastAPI(title="Cetakan", version=__version__)
 
 
 def _read_docx(upload: UploadFile, what):
+    """Isi unggahan sebagai .docx; PDF disusun ulang, .doc/.odt/.rtf dikonversi."""
     data = upload.file.read(MAX_UPLOAD + 1)
     if len(data) > MAX_UPLOAD:
         raise HTTPException(413, f"Berkas {what} terlalu besar (maksimal 40 MB).")
-    if not data.startswith(DOCX_MAGIC):
-        name = (upload.filename or "").lower()
-        hint = " Simpan dulu sebagai .docx di Word (File → Save As)." if name.endswith((".doc", ".pdf", ".odt")) else ""
-        raise HTTPException(400, f"Berkas {what} harus berformat .docx.{hint}")
-    return data
+    name = (upload.filename or "").lower()
+    if data.startswith(DOCX_MAGIC) and not name.endswith(".odt"):
+        return data
+    try:
+        if data.startswith(b"%PDF"):
+            from .pdfread import to_docx
+            return to_docx(data)
+        ext = name.rsplit(".", 1)[-1] if "." in name else ""
+        if ext in ("doc", "odt", "rtf"):
+            return office_to_docx(data, ext)
+    except ExportError as e:
+        raise HTTPException(400, str(e))
+    except ImportError:
+        raise HTTPException(503, "Membaca PDF memerlukan paket pymupdf (pip install pymupdf).")
+    except Exception as e:
+        raise HTTPException(400, f"Berkas {what} tidak dapat dibaca: {e}")
+    raise HTTPException(400, f"Berkas {what} harus .docx, .pdf, .doc, .odt, atau .rtf.")
 
 
 def _template(tid):
@@ -126,7 +139,7 @@ def _block_json(i, b):
 
 @app.post("/api/content")
 def upload_content(text: str = Form(""), merge_lines: bool = Form(False), template_id: str = Form(""),
-                   file: UploadFile | None = File(None)):
+                   skip_front: bool = Form(False), file: UploadFile | None = File(None)):
     avail = None
     if template_id and templates.get(template_id) is not None:
         avail = set(analyze(Document(BytesIO(templates.get(template_id)))).styles)
@@ -142,9 +155,100 @@ def upload_content(text: str = Form(""), merge_lines: bool = Form(False), templa
             raise HTTPException(400, "Naskah masih kosong.")
         content = parse_text(text, merge_lines=merge_lines, available=avail)
         key = hashlib.sha1(f"{merge_lines}|{template_id}|{text}".encode()).hexdigest()[:16]
+    if skip_front:
+        skip_front_matter(content)
+        content.warnings = [w for w in content.warnings if "daftar isi" not in w]
+        key += "f"
     contents.put(key, content)
     return {"content_id": key, "warnings": content.warnings,
             "blocks": [_block_json(i, b) for i, b in enumerate(content.blocks)]}
+
+
+def skip_front_matter(content):
+    """Abaikan sampul, pengesahan, kata pengantar, dan daftar-daftar sebelum bab pertama."""
+    from .classify import UNNUMBERED_RE
+    for k, b in enumerate(content.blocks):
+        if b.role in ("bab", "bab_nama", "h1") and not UNNUMBERED_RE.match(b.text.strip()):
+            if b.role == "h1" and any(x.role == "bab" for x in content.blocks):
+                continue
+            for x in content.blocks[:k]:
+                x.role = x.auto_role = "abaikan"
+            return
+
+
+# ---------------------------------------------------------------------------
+# pustaka format tersimpan
+# ---------------------------------------------------------------------------
+DATA_DIR = os.environ.get("CETAKAN_DATA") or os.path.join(os.path.expanduser("~"), ".cetakan", "format")
+
+
+def _lib_index():
+    path = os.path.join(DATA_DIR, "index.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return []
+
+
+def _lib_save(index):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    tmp = os.path.join(DATA_DIR, "index.json.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, os.path.join(DATA_DIR, "index.json"))
+
+
+class SaveFormat(BaseModel):
+    template_id: str
+    name: str
+    overrides: dict = {}
+
+
+@app.get("/api/library")
+def library():
+    return {"formats": _lib_index()}
+
+
+@app.post("/api/library")
+def library_save(req: SaveFormat):
+    data = _template(req.template_id)
+    name = re.sub(r"\s+", " ", req.name).strip()[:80] or "Format tanpa nama"
+    index = [e for e in _lib_index() if e["id"] != req.template_id]
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(os.path.join(DATA_DIR, f"{req.template_id}.docx"), "wb") as f:
+        f.write(data)
+    import time
+    index.insert(0, {"id": req.template_id, "name": name, "overrides": _overrides(req.overrides),
+                     "saved": int(time.time())})
+    _lib_save(index)
+    return {"formats": index}
+
+
+@app.delete("/api/library/{fid}")
+def library_delete(fid: str):
+    index = [e for e in _lib_index() if e["id"] != fid]
+    _lib_save(index)
+    try:
+        os.remove(os.path.join(DATA_DIR, f"{os.path.basename(fid)}.docx"))
+    except OSError:
+        pass
+    return {"formats": index}
+
+
+@app.post("/api/library/{fid}/use")
+def library_use(fid: str):
+    entry = next((e for e in _lib_index() if e["id"] == fid), None)
+    path = os.path.join(DATA_DIR, f"{os.path.basename(fid)}.docx")
+    if entry is None or not os.path.exists(path):
+        raise HTTPException(404, "Format tersimpan tidak ditemukan.")
+    with open(path, "rb") as f:
+        data = f.read()
+    templates.put(fid, data)
+    overrides = {int(k): v for k, v in entry.get("overrides", {}).items()}
+    prof = analyze(Document(BytesIO(data)), overrides)
+    return {"template_id": fid, "name": entry["name"], "overrides": entry.get("overrides", {}),
+            **describe(prof)}
 
 
 class GenerateRequest(BaseModel):

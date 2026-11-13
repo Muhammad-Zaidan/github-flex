@@ -63,6 +63,26 @@ class ExportError(RuntimeError):
     pass
 
 
+def office_to_docx(data, ext):
+    """.doc / .odt / .rtf → .docx lewat LibreOffice."""
+    exe = soffice()
+    if not exe:
+        raise ExportError(f"Berkas .{ext} perlu LibreOffice untuk dibaca. Simpan dulu sebagai .docx di Word.")
+    with tempfile.TemporaryDirectory(prefix="cetakan-") as tmp:
+        src = os.path.join(tmp, f"masuk.{ext}")
+        with open(src, "wb") as f:
+            f.write(data)
+        with _office_lock:
+            subprocess.run([exe, f"-env:UserInstallation={pathlib.Path(_PROFILE).as_uri()}", "--headless",
+                            "--norestore", "--convert-to", "docx:MS Word 2007 XML", "--outdir", tmp, src],
+                           capture_output=True, timeout=180)
+        out = os.path.join(tmp, "masuk.docx")
+        if not os.path.exists(out):
+            raise ExportError(f"Berkas .{ext} tidak dapat dibaca.")
+        with open(out, "rb") as f:
+            return f.read()
+
+
 def convert(docx_bytes, fmt):
     if fmt == "docx":
         return docx_bytes

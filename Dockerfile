@@ -9,7 +9,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir python-docx lxml fastapi uvicorn python-multipart
+RUN pip install --no-cache-dir python-docx lxml fastapi uvicorn python-multipart pymupdf
 COPY cetakan ./cetakan
 
 EXPOSE 8000

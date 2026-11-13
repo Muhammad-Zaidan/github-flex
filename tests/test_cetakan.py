@@ -3,6 +3,7 @@ from io import BytesIO
 
 import pytest
 from docx import Document
+from docx.shared import Cm
 from docx.oxml.ns import qn
 
 from cetakan.reader import parse_docx, parse_text
@@ -49,7 +50,7 @@ def test_thesis_template_roles():
     assert prof.bab_mode == "split"
     assert prof.breaks["bab"] is True
     assert prof.gaps[("bab_nama", "h1")][0] == 1
-    assert prof.styles["h1"].spec == ("d", 2, "")
+    assert prof.styles["h1"].spec == ("d", 2, "", False)
     assert prof.page["left"] == 4.0
 
 
@@ -272,9 +273,11 @@ def test_api_flow(client):
 
 
 def test_api_rejects_non_docx(client):
-    r = client.post("/api/template", files={"file": ("contoh.pdf", b"%PDF-1.4 ...")})
+    r = client.post("/api/template", files={"file": ("contoh.txt", b"bukan dokumen")})
     assert r.status_code == 400
-    assert "docx" in r.json()["detail"]
+    assert ".docx, .pdf" in r.json()["detail"]
+    r = client.post("/api/template", files={"file": ("rusak.pdf", b"%PDF-1.4 rusak")})
+    assert r.status_code == 400 and "tidak dapat dibaca" in r.json()["detail"]
 
 
 @pytest.mark.skipif(not shutil.which("soffice"), reason="LibreOffice tidak terpasang")
@@ -403,3 +406,133 @@ def test_campus_template_ignores_cover_and_toc():
     texts = [p.text for p in paras(doc)]
     assert texts[:3] == ["DAFTAR ISI", "BAB II", "TINJAUAN PUSTAKA"]
     assert find(doc, "BAB II").paragraph_format.page_break_before
+
+
+# ---------------------------------------------------------------------------
+# PDF sebagai contoh / naskah, penomoran Romawi, bab tanpa nomor, konteks
+# ---------------------------------------------------------------------------
+def _pdf_of(docx_bytes, tmp_path):
+    import subprocess
+    src = tmp_path / "x.docx"
+    src.write_bytes(docx_bytes)
+    subprocess.run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(tmp_path), str(src)],
+                   capture_output=True, timeout=180)
+    return (tmp_path / "x.pdf").read_bytes()
+
+
+def roman_template():
+    """Laporan dengan subbab Romawi bertitik (I.1, II.2.1) seperti laporan TA/PKL."""
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
+    d = Document()
+    C = WD_ALIGN_PARAGRAPH.CENTER
+    for num, name in (("I", "PENDAHULUAN"), ("II", "TINJAUAN PUSTAKA")):
+        p = d.add_paragraph()
+        if num != "I":
+            p.add_run().add_break(WD_BREAK.PAGE)
+        r = p.add_run(f"BAB {num}")
+        r.bold = True
+        p.alignment = C
+        q = d.add_paragraph()
+        q.add_run(name).bold = True
+        q.alignment = C
+        for sub, txt in ((f"{num}.1 Latar", False), (f"{num}.1.1 Rinci", True)):
+            h = d.add_paragraph()
+            h.add_run(sub).bold = True
+            b = d.add_paragraph("Paragraf isi yang cukup panjang agar dikenali sebagai paragraf isi oleh "
+                                "mesin pengenal struktur dokumen ini, ditulis rata kiri-kanan.")
+            b.paragraph_format.first_line_indent = Cm(0.5 if txt else 1.25)
+    buf = BytesIO()
+    d.save(buf)
+    return buf.getvalue()
+
+
+def test_roman_dotted_numbering():
+    t = roman_template()
+    prof = analyze(Document(BytesIO(t)))
+    assert prof.styles["h1"].spec == ("d", 2, "", True)
+    assert prof.styles["h2"].spec == ("d", 3, "", True)
+    doc, _ = run(t, parse_text("BAB III\nMETODE\n## Desain\nIsi paragraf yang cukup panjang supaya dikenali sebagai "
+                               "paragraf isi oleh mesin ini.\n### Populasi\nIsi paragraf yang cukup panjang supaya "
+                               "dikenali sebagai paragraf isi oleh mesin ini.\n2.1 Teknik", available=avail(t)))
+    texts = [p.text for p in paras(doc)]
+    assert "III.1 Desain" in texts and "III.1.1 Populasi" in texts
+    # "2.1 Teknik" disinkronkan lalu ditulis ulang dengan format contoh
+    assert "II.1 Teknik" in texts
+
+
+def test_context_styles_follow_heading_level():
+    t = roman_template()
+    prof = analyze(Document(BytesIO(t)))
+    # paragraf di bawah subbab tingkat 2 menjorok 0,5 cm, di bawah tingkat 1 menjorok 1,25 cm
+    assert ("paragraf", "h2") in prof.ctx_styles
+    doc, _ = run(t, parse_text("BAB I\nPENDAHULUAN\n## Satu\nIsi paragraf yang cukup panjang supaya dikenali sebagai "
+                               "paragraf isi oleh mesin ini.\n### Dua\nIsi paragraf kedua yang cukup panjang supaya "
+                               "dikenali sebagai paragraf isi oleh mesin ini.", available=avail(t)))
+    assert round(find(doc, "Isi paragraf yang").paragraph_format.first_line_indent.cm, 2) == 1.25
+    assert round(find(doc, "Isi paragraf kedua").paragraph_format.first_line_indent.cm, 2) == 0.5
+
+
+def test_unnumbered_chapters_plain_mode():
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt
+    d = Document()
+    for name in ("LATAR BELAKANG", "TINJAUAN PUSTAKA"):
+        p = d.add_paragraph()
+        r = p.add_run(name)
+        r.bold, r.font.size = True, Pt(14)
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        d.add_paragraph().add_run("Rumusan Masalah").bold = True
+        d.add_paragraph("Paragraf isi yang cukup panjang agar dikenali sebagai paragraf isi oleh mesin pengenal "
+                        "struktur dokumen ini.").runs[0].font.size = Pt(12)
+    buf = BytesIO()
+    d.save(buf)
+    t = buf.getvalue()
+    prof = analyze(Document(BytesIO(t)))
+    assert prof.bab_mode == "plain"
+    doc, _ = run(t, parse_text("BAB II\nTINJAUAN PUSTAKA\n## Dasar Teori\nIsi paragraf yang cukup panjang supaya "
+                               "dikenali sebagai paragraf isi oleh mesin ini.", available=avail(t)))
+    assert [p.text for p in paras(doc)][:2] == ["TINJAUAN PUSTAKA", "Dasar Teori"]
+
+
+def test_continuation_and_code_roles():
+    c = parse_text("Langkah:\n1. Ukur tegangan.\n   Pengukuran memakai multimeter terkalibrasi agar akurat.\n"
+                   "```\nint main() {\n    return 0;\n}\n```")
+    roles = [b.role for b in c.blocks]
+    assert roles[:3] == ["paragraf", "daftar", "lanjutan"]
+    assert roles[3:] == ["kode", "kode", "kode"]
+    doc, _ = run(thesis_template(), c)
+    assert any(p.text == "    return 0;" for p in doc.paragraphs)
+
+
+@pytest.mark.skipif(not shutil.which("soffice"), reason="LibreOffice tidak terpasang")
+def test_pdf_as_template_and_content(tmp_path):
+    pytest.importorskip("pymupdf")
+    from cetakan.pdfread import to_docx
+    pdf = _pdf_of(thesis_template(), tmp_path)
+    tpl = to_docx(pdf)
+    prof = analyze(Document(BytesIO(tpl)))
+    roles = {p["text"][:20]: p["role"] for p in prof.paragraphs}
+    assert roles["BAB I"] == "bab" and roles["PENDAHULUAN"] == "bab_nama"
+    assert roles["1.1 Latar Belakang"] == "h1"
+    assert prof.page["left"] == 4.0 and prof.page["right"] == 3.0
+    body = prof.styles["paragraf"].summary
+    assert body["align"] == "justify" and body["first_line"] == 1.25 and body["line_mult"] == 1.5
+    assert body["font"] == "Times New Roman" and body["size"] == 12
+    # PDF sebagai naskah: isi terbaca, termasuk miring
+    hasil, _ = render(thesis_template(), parse_text(SAMPLE_TEXT))
+    c = parse_docx(to_docx(_pdf_of(hasil, tmp_path)))
+    assert [b.role for b in c.blocks][:3] == ["bab", "bab_nama", "h1"]
+    assert any(s.text.strip() == "Davis" and s.i for b in c.blocks for s in b.segs)
+
+
+def test_library_api(client, tmp_path, monkeypatch):
+    import cetakan.server as srv
+    monkeypatch.setattr(srv, "DATA_DIR", str(tmp_path))
+    r = client.post("/api/template", files={"file": ("contoh.docx", thesis_template())})
+    tid = r.json()["template_id"]
+    r = client.post("/api/library", json={"template_id": tid, "name": "Skripsi Kampus", "overrides": {"4": "kutipan"}})
+    assert r.json()["formats"][0]["name"] == "Skripsi Kampus"
+    assert client.get("/api/library").json()["formats"][0]["id"] == tid
+    r = client.post(f"/api/library/{tid}/use")
+    assert r.json()["name"] == "Skripsi Kampus" and "kutipan" in r.json()["roles"]
+    assert client.delete(f"/api/library/{tid}").json()["formats"] == []

@@ -24,25 +24,28 @@ _SECTIONS = (
     r"UCAPAN\s+TERIMA\s+KASIH|ACKNOWLEDGE?MENTS?")
 MAJOR_RE = re.compile(rf"^(?:(?:\d{{1,2}}|{ROMAN}|[A-Z])\.?\s+)?({_SECTIONS})\s*:?$", re.I)
 ABSTRACT_HEAD_RE = re.compile(r"^(ABSTRAK|ABSTRACT|INTISARI|RINGKASAN|SUMMARY)\s*:?$", re.I)
+TOC_HEAD_RE = re.compile(r"^DAFTAR\s+(ISI|GAMBAR|TABEL|LAMPIRAN|RUMUS|PERSAMAAN|BAGAN|GRAFIK)\s*:?$", re.I)
+MONO_FONTS = ("courier", "consolas", "mono", "menlo", "lucida console", "monaco", "source code")
 REFS_HEAD_RE = re.compile(
     r"^(?:(?:\d{1,2}|[IVX]+)\.?\s+)?(DAFTAR\s+PUSTAKA|DAFTAR\s+REFERENSI|REFERENSI|REFERENCES?|"
     r"BIBLIOGRAPHY|BIBLIOGRAFI|KEPUSTAKAAN|RUJUKAN)\s*:?$", re.I)
 # Bagian depan/belakang yang tidak pernah diberi nomor bab/subbab.
 UNNUMBERED_RE = re.compile(
-    r"^(DAFTAR\s+\w+|REFERENSI|REFERENCES?|BIBLIOGRAPHY|BIBLIOGRAFI|KEPUSTAKAAN|RUJUKAN|ABSTRAK|"
+    r"^(DAFTAR\s+.+|REFERENSI|REFERENCES?|BIBLIOGRAPHY|BIBLIOGRAFI|KEPUSTAKAAN|RUJUKAN|ABSTRAK|"
     r"ABSTRACT|INTISARI|RINGKASAN|SUMMARY|KATA\s+PENGANTAR|PRAKATA|LAMPIRAN.*|UCAPAN\s+TERIMA\s+KASIH|"
     r"ACKNOWLEDGE?MENTS?|HALAMAN\s+.*|LEMBAR\s+.*|PERNYATAAN.*|MOTTO.*|PERSEMBAHAN|RIWAYAT\s+HIDUP|"
     r"BIODATA.*)\s*:?$", re.I)
 
 CAPTION_RE = re.compile(
-    r"^(Gambar|Tabel|Figure|Fig\.|Table|Grafik|Diagram|Bagan|Skema|Foto|Ilustrasi)\s*"
+    r"^(Gambar|Tabel|Figure|Fig\.|Table|Grafik|Diagram|Bagan|Skema|Foto|Ilustrasi|Lampiran)\s*"
     r"([0-9IVX]+(?:[.\-][0-9]+)*)\s*([.:\-–—|])?\s*(.*)$", re.I | re.S)
 KEYWORD_RE = re.compile(r"^(Kata[\s-]*[Kk]unci|Keywords?|Key\s+words|Index\s+Terms)\s*[:：—–\-]", re.I)
 # Entri daftar isi / daftar tabel: teks, tab atau titik-titik, lalu nomor halaman.
 TOC_LINE_RE = re.compile(r"^\S.{1,200}?(\t[\s.·…_\-]*|[.·…_]{4,}\s*)([0-9]{1,4}|[ivxlcdm]{1,7})\s*$", re.I | re.S)
 ABS_INLINE_RE = re.compile(r"^(Abstrak|Abstract|Intisari)\s*[:.—–\-]\s*\S", re.I)
 
-NUM_HEAD_RE = re.compile(r"^(\d{1,2}(?:\.\d{1,2}){0,4})(\.?)\s+(\S.*)$", re.S)
+# 1.1 / 2.3.1 / juga I.1 / II.2.1 (nomor bab Romawi diikuti subnomor)
+NUM_HEAD_RE = re.compile(r"^((?:\d{1,2}|[IVXLC]{1,6}(?=\.\d))(?:\.\d{1,2}){0,4})(\.?)\s+(\S.*)$", re.S)
 ROMAN_HEAD_RE = re.compile(rf"^({ROMAN})\.\s+(\S.*)$", re.S)
 ALPHA_HEAD_RE = re.compile(r"^([A-Z])\.\s+(\S.*)$", re.S)
 ALPHA_LOW_HEAD_RE = re.compile(r"^([a-z])[.)]\s+(\S.*)$", re.S)
@@ -154,6 +157,9 @@ def classify(items, available=None):
             roles[k] = "abaikan"
             it.extra["toc"] = True
             continue
+        if it.props and any(f in (it.props.get("font") or "").lower() for f in MONO_FONTS):
+            roles[k] = "kode"
+            continue
         if it.has_drawing and nw <= 4:
             roles[k] = "gambar"
             continue
@@ -251,7 +257,7 @@ def classify(items, available=None):
         it = items[k0]
         t = it.text.strip()
         p = it.props
-        looks = words(t) <= 35 and not t.endswith(".")
+        looks = words(t) <= 35 and not t.endswith((".", ":"))
         if p is not None:
             nk = nxt(k0)
             before_heading = nk is not None and roles[nk] == "heading" and words(t) <= 20
@@ -311,13 +317,43 @@ def classify(items, available=None):
             lvl = seen.index(kd) + 1
         roles[k] = f"h{min(max(lvl, 1), 3)}"
 
+    # --- tahap 6b: judul setingkat bab tanpa nomor ---------------------------
+    # Judul di tengah yang hurufnya lebih besar dari isi (mis. "LATAR BELAKANG" pada
+    # proposal) setara bab, walau tidak diawali "BAB I".
+    for k in order:
+        p = items[k].props
+        if p is None or roles[k] not in ("h1", "h2", "h3"):
+            continue
+        if p.get("align") == "center" and (p.get("size") or 0) >= base_size + 1 \
+                and words(items[k].text) <= 10:
+            roles[k] = "bab"
+
+    # --- tahap 6c: paragraf lanjutan di dalam butir daftar --------------------
+    # Paragraf yang menjorok sejajar teks butir di atasnya (tanpa menjorok baris
+    # pertama) adalah lanjutan butir, bukan paragraf isi biasa.
+    prev_role = prev_left = None
+    for k in order:
+        it = items[k]
+        p = it.props
+        if roles[k] == "paragraf" and prev_role in ("daftar", "lanjutan") and p is not None \
+                and (p.get("ind_left") or 0) >= base_ind + 0.4 and (p.get("first_line") or 0) <= 0.05 \
+                and (prev_left is None or (p.get("ind_left") or 0) >= prev_left - 0.15):
+            roles[k] = "lanjutan"
+        prev_role = roles[k]
+        if roles[k] == "daftar" and p is not None:
+            prev_left = p.get("ind_left") or 0
+
     # --- tahap 7: konteks bagian (abstrak, daftar pustaka) -------------------
     section = None
     for k in order:
         t = items[k].text.strip()
         r = roles[k]
+        if section == "toc" and r not in ("bab", "bab_nama", "judul"):
+            roles[k] = "abaikan"        # isi daftar isi/gambar/tabel (termasuk entri terlipat)
+            continue
         if r in ("bab", "bab_nama", "h1", "h2", "h3", "judul"):
             section = ("abs" if ABSTRACT_HEAD_RE.match(t) else
+                       "toc" if TOC_HEAD_RE.match(t) else
                        "ref" if REFS_HEAD_RE.match(t) else None)
             continue
         if r == "kata_kunci":

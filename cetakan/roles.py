@@ -12,11 +12,13 @@ ROLES = {
     "abstrak": "Abstrak",
     "kata_kunci": "Kata kunci",
     "daftar": "Butir daftar",
+    "lanjutan": "Lanjutan butir daftar",
     "kutipan": "Kutipan panjang",
     "gambar": "Gambar",
     "keterangan_gambar": "Keterangan gambar",
     "keterangan_tabel": "Keterangan tabel",
     "pustaka": "Daftar pustaka",
+    "kode": "Kode program",
     "tabel": "Tabel",
     "abaikan": "Abaikan",
 }
@@ -35,11 +37,13 @@ FALLBACK = {
     "abstrak": ["paragraf"],
     "kata_kunci": ["abstrak", "paragraf"],
     "daftar": ["paragraf"],
+    "lanjutan": ["paragraf"],
     "kutipan": ["paragraf"],
     "gambar": ["keterangan_gambar", "paragraf"],
     "keterangan_gambar": ["keterangan_tabel", "paragraf"],
     "keterangan_tabel": ["keterangan_gambar", "paragraf"],
     "pustaka": ["paragraf"],
+    "kode": ["paragraf"],
 }
 
 

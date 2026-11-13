@@ -3,5 +3,7 @@ lxml>=5
 fastapi>=0.110
 uvicorn>=0.29
 python-multipart>=0.0.9
+# membaca PDF sebagai contoh/naskah
+pymupdf>=1.24
 # membawa Pandoc sendiri, untuk ekspor HTML / Markdown / LaTeX / EPUB / teks
 pypandoc_binary>=1.13

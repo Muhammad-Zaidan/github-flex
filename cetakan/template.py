@@ -82,6 +82,8 @@ class Profile:
     page: dict
     paragraphs: list
     roles: list
+    ctx_styles: dict = field(default_factory=dict)   # (peran, konteks judul) → RoleStyle
+    ctx_lists: dict = field(default_factory=dict)    # (jenis daftar, konteks) → RoleStyle
 
 
 def _text_runs(p):
@@ -101,7 +103,8 @@ def _manual_spec(role, text):
         return None
     m = NUM_HEAD_RE.match(t)
     if m:
-        return ("d", m.group(1).count(".") + 1, m.group(2)), re.match(r"^\S+(\s+)", t).group(1)
+        return (("d", m.group(1).count(".") + 1, m.group(2), m.group(1)[0] in "IVXLC"),
+                re.match(r"^\S+(\s+)", t).group(1))
     for rx, key in ((ROMAN_HEAD_RE, "R"), (ALPHA_HEAD_RE, "A")):
         if rx.match(t):
             return (key,), re.match(r"^\S+(\s+)", t).group(1)
@@ -230,9 +233,14 @@ def analyze(doc, overrides=None):
     styles, lists, exact = {}, {}, {}
 
     def pick(idxs):
+        """Paragraf dengan format yang menutupi teks terbanyak (bukan sekadar terbanyak
+        jumlahnya, agar baris kode/lampiran pendek tidak mengalahkan paragraf isi)."""
         sigs = [(_sig(paras[i][1].find(qn("w:pPr"))),
                  _sig(next((r for r, t in _text_runs(paras[i][1]) if t.strip()), None))) for i in idxs]
-        best = Counter(sigs).most_common(1)[0][0]
+        weight = Counter()
+        for i, sg in zip(idxs, sigs):
+            weight[sg] += len(paras[i][2].text.strip()) + 20
+        best = weight.most_common(1)[0][0]
         return idxs[sigs.index(best)]
 
     for r, idxs in by_role.items():
@@ -246,6 +254,10 @@ def analyze(doc, overrides=None):
                 lists[kind] = _role_style(r, paras[i][1], res, paras[i][2], [])
                 lists[kind].index = i
             i = pick(idxs)
+        elif r == "bab" and any(BAB_RE.match(paras[i][2].text.strip()) for i in idxs):
+            # gaya bab diambil dari baris "BAB n"; judul halaman awal (DAFTAR ISI, dsb.)
+            # tetap punya gayanya sendiri lewat pencocokan nama
+            i = pick([i for i in idxs if BAB_RE.match(paras[i][2].text.strip())])
         else:
             i = pick(idxs)
         rs = _role_style(r, paras[i][1], res, paras[i][2], texts)
@@ -258,6 +270,36 @@ def analyze(doc, overrides=None):
                     e = _role_style(r, paras[j][1], res, paras[j][2], [paras[j][2].text.strip()])
                     e.index = j
                     exact[key] = e
+
+    # --- gaya bergantung konteks: paragraf/daftar di bawah bab, subjudul 1/2/3 ---
+    ctx_of, ctx = {}, None
+    for idx, r in enumerate(roles):
+        if r in ("bab", "bab_nama"):
+            ctx = "bab"
+        elif r in ("h1", "h2", "h3"):
+            ctx = r
+        ctx_of[idx] = ctx
+    ctx_styles, ctx_lists = {}, {}
+
+    def sig_of(i):
+        return (_sig(paras[i][1].find(qn("w:pPr"))),
+                _sig(next((r for r, t in _text_runs(paras[i][1]) if t.strip()), None)))
+
+    for r in ("paragraf", "lanjutan", "kutipan", "daftar"):
+        groups = defaultdict(list)
+        for i in by_role.get(r, []):
+            key = (list_kind(paras[i][2]), ctx_of[i]) if r == "daftar" else (r, ctx_of[i])
+            groups[key].append(i)
+        for key, g in groups.items():
+            if key[1] is None or sum(len(paras[i][2].text) for i in g) < 200:
+                continue
+            i = pick(g)
+            base = (lists.get(key[0]) if r == "daftar" else styles.get(r))
+            if base is not None and sig_of(i) == sig_of(base.index):
+                continue
+            rs = _role_style(r, paras[i][1], res, paras[i][2], [])
+            rs.index = i
+            (ctx_lists if r == "daftar" else ctx_styles)[key] = rs
 
     # --- jarak (paragraf kosong) & pemisah halaman antarperan ----------------
     gaps = defaultdict(list)
@@ -299,7 +341,7 @@ def analyze(doc, overrides=None):
     # --- gaya bab ------------------------------------------------------------
     bab_mode, bab_sep = None, " "
     if "bab" in styles:
-        bab_mode = "auto" if styles["bab"].auto_num else "split"
+        bab_mode = "auto" if styles["bab"].auto_num else "plain"   # plain: bab tanpa "BAB n"
         for idx in by_role["bab"]:
             el, item = paras[idx][1], paras[idx][2]
             full = para_text(el).strip()
@@ -346,7 +388,7 @@ def analyze(doc, overrides=None):
         listing.append({"i": idx, "text": s[2].text.strip()[:220] or "[gambar]", "role": r})
     return Profile(styles=styles, lists=lists, exact=exact, gaps=gap_table, breaks=brk,
                    bab_mode=bab_mode, bab_sep=bab_sep, table=table, page=_page(doc),
-                   paragraphs=listing, roles=roles)
+                   paragraphs=listing, roles=roles, ctx_styles=ctx_styles, ctx_lists=ctx_lists)
 
 
 def _spacer(p):
@@ -363,5 +405,10 @@ def describe(profile):
     for r, rs in profile.styles.items():
         out[r] = {"label": ROLES[r], "sample": rs.sample, "style": rs.summary,
                   "page_break": profile.breaks.get(r, False), "index": rs.index}
-    return {"roles": out, "page": profile.page, "bab_mode": profile.bab_mode,
+    extra = []
+    for (r, ctx), rs in list(profile.ctx_styles.items()) + [
+            (("daftar", c), rs) for (k, c), rs in profile.ctx_lists.items()]:
+        extra.append({"role": r, "context": ctx, "label": f"{ROLES[r]} · di bawah {ROLES[ctx].lower()}",
+                      "sample": rs.sample, "style": rs.summary, "index": rs.index})
+    return {"roles": out, "context_roles": extra, "page": profile.page, "bab_mode": profile.bab_mode,
             "paragraphs": profile.paragraphs, "has_table": bool(profile.table)}

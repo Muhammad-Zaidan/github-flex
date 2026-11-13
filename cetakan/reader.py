@@ -9,7 +9,7 @@ from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml import parse_xml
 from docx.oxml.ns import qn
 
-from .classify import Item, classify
+from .classify import BULLET_RE, NUMLIST_RE, Item, classify
 from .styles import StyleResolver
 
 M_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math"
@@ -114,9 +114,18 @@ def parse_text(text, merge_lines=False, available=None):
             lines[k] = ""
     raw = []          # (jenis, isi)
     k = 0
+    fence = False
     while k < len(lines):
         line = lines[k].rstrip()
         s = line.strip()
+        if s.startswith("```"):
+            fence = not fence
+            k += 1
+            continue
+        if fence:                           # kode program: spasi awal dipertahankan
+            raw.append(("code", line or "\u00a0"))
+            k += 1
+            continue
         if not s:
             raw.append(("blank", None))
             k += 1
@@ -149,6 +158,9 @@ def parse_text(text, merge_lines=False, available=None):
                 raw[-1] = ("p", prev[:-1] + s)
             else:
                 raw[-1] = ("p", prev + " " + s)
+        elif line[:1] == "\t" or line[:2] == "  " and raw and raw[-1][0] in ("p", "lanjut") and (
+                raw[-1][0] == "lanjut" or BULLET_RE.match(raw[-1][1]) or NUMLIST_RE.match(raw[-1][1])):
+            raw.append(("lanjut", s))       # baris menjorok setelah butir: lanjutan butir
         else:
             raw.append(("p", s))
         k += 1
@@ -157,12 +169,15 @@ def parse_text(text, merge_lines=False, available=None):
     for kind, val in raw:
         if kind == "blank":
             continue
+        if kind == "code":
+            blocks.append(Block(segs=[Seg(val)], item=Item(text=val, forced="kode")))
+            continue
         if kind == "table":
             rows = [[inline(c, notes) for c in r] for r in val]
             blocks.append(Block(kind="table", rows=rows, role="tabel", auto_role="tabel",
                                 item=Item(text=" | ".join(val[0]), forced="tabel")))
             continue
-        item = Item(text=val)
+        item = Item(text=val, forced="lanjutan" if kind == "lanjut" else None)
         body = val
         m = MD_HEAD_RE.match(val)
         if m:

@@ -18,7 +18,9 @@ const state = {
 };
 
 const ROLE_ORDER = ["judul", "penulis", "bab", "bab_nama", "h1", "h2", "h3", "paragraf", "abstrak",
-  "kata_kunci", "daftar", "kutipan", "gambar", "keterangan_gambar", "keterangan_tabel", "pustaka", "abaikan"];
+  "kata_kunci", "daftar", "lanjutan", "kutipan", "kode", "gambar", "keterangan_gambar", "keterangan_tabel",
+  "pustaka", "abaikan"];
+const DOC_RE = /\.(docx|pdf|doc|odt|rtf)$/i;
 
 const store = {
   get(k) { try { return localStorage.getItem("cetakan." + k); } catch { return null; } },
@@ -113,17 +115,21 @@ function describeStyle(st, pageBreak) {
 // ---------------------------------------------------------------------------
 async function uploadTemplate(file) {
   if (!file) return;
-  if (!/\.docx$/i.test(file.name)) {
-    setStatus(`Contoh harus .docx. Buka <b>${esc(file.name)}</b> di Word lalu simpan sebagai .docx.`, "err");
+  if (!DOC_RE.test(file.name)) {
+    setStatus(`Contoh harus .docx atau .pdf (<b>${esc(file.name)}</b> tidak didukung).`, "err");
     return;
   }
-  setStatus('<span class="spinner"></span>Mempelajari format contoh…');
+  setStatus(/\.pdf$/i.test(file.name)
+    ? '<span class="spinner"></span>Membaca tata letak PDF dan mempelajari formatnya…'
+    : '<span class="spinner"></span>Mempelajari format contoh…');
   const fd = new FormData();
   fd.append("file", file);
   try {
     const data = await (await api("/api/template", { method: "POST", body: fd })).json();
     state.tpl = { id: data.template_id, name: file.name, data, overrides: {} };
+    $("#saveName").value = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
     renderTemplate();
+    renderLibrary();
     setStatus(`Format dipelajari dari <b>${esc(file.name)}</b>.`, "ok");
     await parseContent();
   } catch (e) {
@@ -157,6 +163,15 @@ function renderTemplate() {
       <div class="lrole-sample" style="${esc(sampleCSS)}">${esc(info.sample || "—")}</div>
       <div class="lrole-attr">${esc(describeStyle(st, info.page_break))}</div>`;
     box.appendChild(sample);
+    for (const c of d.context_roles || []) {
+      if (c.role !== r) continue;
+      const cs = { ...c.style };
+      const el = document.createElement("div");
+      el.className = "lrole ctx";
+      el.innerHTML = `<div class="lrole-top"><b>${esc(c.label)}</b><span>paragraf #${c.index + 1}</span></div>
+        <div class="lrole-attr">${esc(describeStyle(cs, false))}</div>`;
+      box.appendChild(el);
+    }
   }
 
   const list = $("#tplParas");
@@ -192,6 +207,75 @@ async function changeTemplateRole(i, role) {
 }
 
 // ---------------------------------------------------------------------------
+// pustaka format tersimpan
+// ---------------------------------------------------------------------------
+async function loadLibrary() {
+  try {
+    state.library = (await (await api("/api/library")).json()).formats;
+  } catch { state.library = []; }
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const list = state.library || [];
+  $("#library").classList.toggle("hidden", !list.length);
+  const box = $("#libList");
+  box.innerHTML = "";
+  for (const f of list) {
+    const item = document.createElement("span");
+    item.className = "lib-item" + (state.tpl && state.tpl.id === f.id ? " active" : "");
+    item.innerHTML = `<button type="button" title="Pakai format ini">${esc(f.name)}</button><button type="button" class="del" aria-label="Hapus format ${esc(f.name)}" title="Hapus">×</button>`;
+    item.firstChild.addEventListener("click", () => useFormat(f));
+    item.lastChild.addEventListener("click", () => deleteFormat(f));
+    box.appendChild(item);
+  }
+  const saved = state.tpl && list.some((f) => f.id === state.tpl.id);
+  $("#saveBtn").textContent = saved ? "Perbarui" : "Simpan format";
+}
+
+async function useFormat(f) {
+  setStatus('<span class="spinner"></span>Memuat format…');
+  try {
+    const data = await (await api(`/api/library/${f.id}/use`, { method: "POST" })).json();
+    state.tpl = { id: data.template_id, name: data.name, data, overrides: data.overrides || {} };
+    $("#saveName").value = data.name;
+    renderTemplate();
+    renderLibrary();
+    setStatus(`Memakai format <b>${esc(data.name)}</b>.`, "ok");
+    await parseContent();
+  } catch (e) {
+    setStatus(esc(e.message), "err");
+  }
+}
+
+async function saveFormat(ev) {
+  ev.preventDefault();
+  if (!state.tpl) return;
+  const name = $("#saveName").value.trim() || state.tpl.name;
+  try {
+    const data = await (await postJSON("/api/library", { template_id: state.tpl.id, name, overrides: state.tpl.overrides })).json();
+    state.library = data.formats;
+    state.tpl.name = name;
+    $("#tplName").textContent = name;
+    renderLibrary();
+    setStatus(`Format <b>${esc(name)}</b> disimpan. Lain kali tinggal klik namanya.`, "ok");
+  } catch (e) {
+    setStatus(esc(e.message), "err");
+  }
+}
+
+async function deleteFormat(f) {
+  if (!confirm(`Hapus format “${f.name}”?`)) return;
+  try {
+    const res = await api(`/api/library/${f.id}`, { method: "DELETE" });
+    state.library = (await res.json()).formats;
+    renderLibrary();
+  } catch (e) {
+    setStatus(esc(e.message), "err");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 2. naskah
 // ---------------------------------------------------------------------------
 function hasInput() {
@@ -208,7 +292,12 @@ async function parseContent() {
   const seq = ++state.seq;
   const fd = new FormData();
   if (state.tpl) fd.append("template_id", state.tpl.id);
-  if (state.mode === "file") fd.append("file", state.docFile);
+  if (state.mode === "file") {
+    fd.append("file", state.docFile);
+    fd.append("skip_front", $("#skipFront").checked ? "true" : "false");
+    if (/\.pdf$/i.test(state.docFile.name) && !state.content)
+      setStatus('<span class="spinner"></span>Membaca tata letak PDF naskah…');
+  }
   else {
     fd.append("text", $("#text").value);
     fd.append("merge_lines", $("#mergeLines").checked ? "true" : "false");
@@ -253,7 +342,8 @@ async function refreshPreview(seq = ++state.seq) {
     renderPreview(data);
     const warns = [...new Set([...(state.content.warnings || []), ...(data.warnings || [])])];
     if (warns.length) setStatus("⚠ " + warns.map(esc).join("<br>⚠ "), "warn");
-    else if ($("#status").classList.contains("err") || $("#status").classList.contains("warn")) setStatus("");
+    else if ($("#status").classList.contains("err") || $("#status").classList.contains("warn")
+             || $("#status .spinner")) setStatus("");
   } catch (e) {
     if (seq === state.seq) handleError(e);
   }
@@ -630,10 +720,11 @@ async function init() {
   $("#tplChange").addEventListener("click", () => $("#tplFile").click());
   wireDrop($("#docDrop"), $("#docFile"), (f) => {
     if (!f) return;
-    if (!/\.docx$/i.test(f.name)) {
-      setStatus(`Naskah harus .docx. Simpan <b>${esc(f.name)}</b> sebagai .docx dulu, atau salin teksnya ke tab “Ketik / tempel”.`, "err");
+    if (!DOC_RE.test(f.name)) {
+      setStatus(`Naskah harus .docx atau .pdf, atau salin teksnya ke tab “Ketik / tempel”.`, "err");
       return;
     }
+    state.content = null;
     state.docFile = f;
     state.roleOverrides = {};
     $("#docName").textContent = f.name;
@@ -656,6 +747,10 @@ async function init() {
   const onText = debounce(() => { store.set("draft", text.value); parseContent(); }, 350);
   text.addEventListener("input", () => { textStats(); updateButtons(); onText(); });
   $("#mergeLines").addEventListener("change", (e) => { store.set("merge", e.target.checked ? "1" : "0"); parseContent(); });
+  $("#skipFront").checked = store.get("skipFront") !== "0";
+  $("#skipFront").addEventListener("change", (e) => { store.set("skipFront", e.target.checked ? "1" : "0"); state.roleOverrides = {}; parseContent(); });
+  $("#saveForm").addEventListener("submit", saveFormat);
+  loadLibrary();
 
   $("#downloadBtn").addEventListener("click", download);
   $("#pdfBtn").addEventListener("click", showPdf);

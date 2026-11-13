@@ -111,6 +111,22 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .file-name::before { content: "▤ "; color: var(--accent); }
 #tplPage { margin: 8px 2px 12px; }
 
+/* pustaka format */
+.library { margin-bottom: 12px; }
+.library > p { margin-bottom: 6px; }
+.lib-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.lib-item { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.lib-item.active { border-color: var(--accent); background: var(--accent-soft); }
+.lib-item button { border: 0; background: none; color: var(--text); font-size: 13px; padding: 6px 4px 6px 12px; font-weight: 600; }
+.lib-item.active button { color: var(--accent); }
+.lib-item .del { padding: 6px 10px 6px 6px; color: var(--muted); font-weight: 400; }
+.lib-item .del:hover { color: var(--danger); }
+.save-row { display: flex; gap: 6px; margin: 0 0 12px; }
+.save-row input { flex: 1; min-width: 0; font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); }
+.save-row .secondary { padding: 7px 12px; font-size: 13.5px; white-space: nowrap; }
+.file-opt { margin-top: 10px; }
+.lrole.ctx { margin-left: 14px; border-style: dashed; }
+
 /* learned styles */
 .learned { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow: auto; padding-right: 2px; }
 .lrole { border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; background: var(--surface-2); }

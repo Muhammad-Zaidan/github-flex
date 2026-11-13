@@ -2,7 +2,9 @@
 
 **Satu contoh format, semua tulisan ikut formatnya.**
 
-Cetakan mempelajari format dari **satu dokumen contoh utuh** (.docx), misalnya template dari kampus, panduan penulisan jurnal, atau skripsi/artikel orang lain yang formatnya sudah benar. Setelah itu, tulisan Anda dicetak ulang mengikuti format tersebut. Tulisannya bisa berupa teks mentah yang ditempel atau .docx yang formatnya berantakan.
+Cetakan mempelajari format dari **satu dokumen contoh utuh** (.docx **atau .pdf**), misalnya template dari kampus, panduan penulisan jurnal, atau skripsi/artikel orang lain yang formatnya sudah benar. Setelah itu, tulisan Anda dicetak ulang mengikuti format tersebut. Tulisannya bisa berupa teks mentah yang ditempel, .docx yang formatnya berantakan, atau PDF dokumen lain.
+
+Format yang sudah dipelajari bisa **disimpan dengan nama** (misalnya *Proposal TA*, *Laporan TA*, *Laporan PKL*). Setelah itu, mengganti format cukup dengan sekali klik. Contohnya, isi proposal bisa langsung dipindahkan ke format laporan TA.
 
 Cetakan tidak memakai AI, gratis, dan bisa berjalan tanpa internet. Pengenalan struktur memakai pola teks, nama gaya, dan ciri format, sehingga hasilnya konsisten dan cepat: naskah sekitar 140 ribu kata selesai dalam sekitar satu detik.
 
@@ -31,8 +33,8 @@ docker run -p 8000:8000 cetakan
 
 ## Cara pakai
 
-1. **Unggah contoh format** (.docx). Panel kiri lalu menampilkan gaya yang berhasil dipelajari untuk setiap bagian: judul bab, subjudul, paragraf, daftar pustaka, dan lain-lain.
-2. **Masukkan naskah.** Tempel teks mentah atau unggah .docx berantakan. Pratinjau halaman langsung muncul dengan format contoh.
+1. **Unggah contoh format** (.docx atau .pdf). Panel kiri lalu menampilkan gaya yang berhasil dipelajari untuk setiap bagian: judul bab, subjudul, paragraf, daftar pustaka, dan lain-lain. Tekan **Simpan format** dan beri nama. Lain kali, format itu tinggal diklik dari daftar *Format tersimpan*.
+2. **Masukkan naskah.** Tempel teks mentah, atau unggah .docx/.pdf. Untuk berkas, opsi *Lewati halaman awal* membuang sampul, pengesahan, kata pengantar, dan daftar isi, sehingga yang dicetak dimulai dari bab pertama. Pratinjau halaman langsung muncul dengan format contoh.
 3. **Periksa.** Jika ada bagian yang salah dikenali, klik paragrafnya di pratinjau lalu pilih peran yang benar. Kesalahan deteksi pada contoh juga bisa dikoreksi di bagian *Periksa deteksi pada contoh*.
 4. **Unduh** sebagai Word, PDF, ODT, RTF, HTML, Markdown, LaTeX, EPUB, atau teks polos. Tombol *Lihat PDF asli* menampilkan hasil akhir sebelum diunduh.
 
@@ -46,7 +48,9 @@ docker run -p 8000:8000 cetakan
 | Baris kosong antarbagian | Satu baris kosong setelah nama bab |
 | Halaman baru | Setiap bab dan *Daftar Pustaka* mulai di halaman baru |
 | Bentuk judul bab | `BAB I` + `PENDAHULUAN` di dua baris, satu baris, atau penomoran otomatis Word |
-| Penomoran subjudul | `1.1`, `1.1.1`, `A.`, `I.`, atau penomoran otomatis. Nomor dibuat dan disesuaikan otomatis |
+| Penomoran subjudul | `1.1`, `1.1.1`, Romawi bertitik `I.1` / `II.2.1`, `A.`, `I.`, atau penomoran otomatis. Nomor dibuat dan disesuaikan otomatis |
+| Bab tanpa nomor | Judul bagian di tengah tanpa "BAB n" (gaya proposal) |
+| Gaya bergantung konteks | Paragraf dan daftar yang menjorok berbeda di bawah bab, subbab 1, 2, atau 3 |
 | Kapitalisasi | `TINJAUAN PUSTAKA` menjadi `Tinjauan Pustaka` jika contoh memakai Huruf Awal Kapital |
 | Label bergaya | **Gambar 1.1** tebal, keterangannya tidak; **Kata kunci:** tebal |
 | Gaya judul khusus | *Abstrak*, *Daftar Pustaka*, dan sejenisnya memakai gaya persis seperti di contoh |
@@ -56,7 +60,10 @@ docker run -p 8000:8000 cetakan
 | Kertas & margin, header/footer | A4 dengan margin 4-4-3-3, nomor halaman |
 
 ### Bagian naskah yang dikenali otomatis
-Judul dokumen, penulis/identitas, judul bab, nama bab, subjudul tingkat 1–3, paragraf, abstrak, kata kunci, butir daftar, kutipan panjang, gambar, keterangan gambar/tabel, tabel, entri daftar pustaka, dan catatan kaki.
+Judul dokumen, penulis/identitas, judul bab, nama bab, subjudul tingkat 1–3, paragraf, abstrak, kata kunci, butir daftar, lanjutan butir daftar, kutipan panjang, kode program, gambar, keterangan gambar/tabel/lampiran, tabel, entri daftar pustaka, dan catatan kaki.
+
+### Contoh dan naskah berupa PDF
+Cetakan menyusun ulang PDF menjadi dokumen Word dengan membaca tata letaknya. Yang dibaca: huruf, ukuran, tebal/miring, superskrip/subskrip, perataan, menjorok, spasi baris, jarak antarparagraf, pemisah halaman, margin, ukuran kertas, dan nomor halaman. Tabel bergaris menjadi tabel Word, termasuk lebar kolom dan arsiran kepala. Gambar, diagram vektor, dan persamaan disalin sebagai gambar. Hasil terbaik didapat dari PDF yang dibuat dari Word atau LibreOffice. PDF hasil pindaian (gambar) tidak bisa dibaca.
 
 Dari .docx, unsur berikut ikut dibawa: **gambar, tabel, persamaan (Equation), catatan kaki, tebal/miring/garis bawah, superskrip/subskrip**. Format yang berantakan (font campur aduk, ukuran acak, baris kosong berlebih) dibuang dan diganti format contoh.
 
@@ -98,7 +105,8 @@ Ekstensi berkas keluaran menentukan formatnya.
 
 ## Batasan yang perlu diketahui
 
-- Contoh dan naskah harus berformat **.docx**. File .doc, .odt, atau PDF perlu disimpan ulang sebagai .docx terlebih dahulu.
+- Contoh dan naskah bisa berformat .docx atau .pdf. File .doc, .odt, dan .rtf dibaca lewat LibreOffice.
+- Dari PDF, persamaan ikut sebagai gambar (bukan persamaan yang bisa disunting), dan tabel tanpa garis terbaca sebagai teks biasa.
 - Halaman sampul, lembar pengesahan, dan daftar isi pada contoh tidak ikut disalin, karena yang dicetak adalah isi naskah. Daftar isi bisa dibuat ulang di Word melalui menu *References → Table of Contents*.
 - Jika contoh memakai beberapa *section* dengan penomoran halaman berbeda (misalnya romawi untuk bagian awal), hasil memakai pengaturan section terakhir.
 - Grafik Word (chart) dan objek tertanam selain gambar belum dapat disalin. Sitasi Zotero/Mendeley ikut sebagai teks biasa.
