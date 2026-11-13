@@ -174,8 +174,8 @@ def parse_text(text, merge_lines=False, available=None):
         segs = inline(body, notes)
         item.text = "".join(sg.text for sg in segs)
         blocks.append(Block(segs=segs, item=item))
-    _classify_blocks(blocks, available)
-    return Content(blocks=blocks)
+    warnings = _classify_blocks(blocks, available)
+    return Content(blocks=blocks, warnings=warnings)
 
 
 def _classify_blocks(blocks, available):
@@ -184,6 +184,11 @@ def _classify_blocks(blocks, available):
     roles = align_levels([b.item for b in paras], roles, available)
     for b, r in zip(paras, roles):
         b.role = b.auto_role = r or "paragraf"
+    toc = sum(1 for b in paras if b.item.extra.get("toc"))
+    if toc:
+        return [f"{toc} baris daftar isi/daftar tabel dilewati; buat ulang daftar isi di Word "
+                "(References → Table of Contents)."]
+    return []
 
 
 def align_levels(items, roles, available):
@@ -375,5 +380,5 @@ def parse_docx(data, available=None):
                     visit(c)
 
     visit(doc.element.body)
-    _classify_blocks(blocks, available)
+    warnings.update(_classify_blocks(blocks, available))
     return Content(blocks=blocks, source=doc, warnings=sorted(warnings))

@@ -38,6 +38,8 @@ CAPTION_RE = re.compile(
     r"^(Gambar|Tabel|Figure|Fig\.|Table|Grafik|Diagram|Bagan|Skema|Foto|Ilustrasi)\s*"
     r"([0-9IVX]+(?:[.\-][0-9]+)*)\s*([.:\-–—|])?\s*(.*)$", re.I | re.S)
 KEYWORD_RE = re.compile(r"^(Kata[\s-]*[Kk]unci|Keywords?|Key\s+words|Index\s+Terms)\s*[:：—–\-]", re.I)
+# Entri daftar isi / daftar tabel: teks, tab atau titik-titik, lalu nomor halaman.
+TOC_LINE_RE = re.compile(r"^\S.{1,200}?(\t[\s.·…_\-]*|[.·…_]{4,}\s*)([0-9]{1,4}|[ivxlcdm]{1,7})\s*$", re.I | re.S)
 ABS_INLINE_RE = re.compile(r"^(Abstrak|Abstract|Intisari)\s*[:.—–\-]\s*\S", re.I)
 
 NUM_HEAD_RE = re.compile(r"^(\d{1,2}(?:\.\d{1,2}){0,4})(\.?)\s+(\S.*)$", re.S)
@@ -147,6 +149,10 @@ def classify(items, available=None):
             roles[k] = it.forced
             if it.forced_level is not None:
                 kinds[k] = ("md", it.forced_level)
+            continue
+        if (sn.startswith(("toc", "table of figures", "daftar isi")) or TOC_LINE_RE.match(t)) and nw <= 30:
+            roles[k] = "abaikan"
+            it.extra["toc"] = True
             continue
         if it.has_drawing and nw <= 4:
             roles[k] = "gambar"

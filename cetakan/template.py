@@ -9,7 +9,7 @@ from docx.oxml.ns import qn
 from lxml import etree
 
 from .classify import (
-    ABS_INLINE_RE, ALPHA_HEAD_RE, ALPHA_LOW_HEAD_RE, BAB_ONLY_RE, BAB_RE, BULLET_RE, CAPTION_RE,
+    ALPHA_HEAD_RE, ALPHA_LOW_HEAD_RE, BAB_ONLY_RE, BAB_RE, BULLET_RE, CAPTION_RE,
     KEYWORD_RE, NUM_HEAD_RE, NUMLIST_RE, ROMAN_HEAD_RE, classify, is_titleish, list_kind)
 from .reader import para_item, para_text
 from .roles import HEADINGS, ROLES

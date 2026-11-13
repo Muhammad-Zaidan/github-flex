@@ -4,14 +4,13 @@ from io import BytesIO
 import pytest
 from docx import Document
 from docx.oxml.ns import qn
-from docx.shared import Cm
 
 from cetakan.reader import parse_docx, parse_text
 from cetakan.render import Renderer, render, title_case
 from cetakan.reader import Seg
 from cetakan.template import analyze
 
-from fixtures import SAMPLE_TEXT, journal_template, messy_docx, rich_docx, thesis_template
+from fixtures import SAMPLE_TEXT, campus_template, journal_template, messy_docx, rich_docx, thesis_template
 
 WP = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
 M = "{http://schemas.openxmlformats.org/officeDocument/2006/math}"
@@ -390,3 +389,17 @@ def test_output_is_schema_ordered(make):
         if rel.reltype in (RT.FOOTNOTES, RT.NUMBERING, RT.STYLES):
             assert_schema_order(parse_xml(rel.target_part.blob) if not hasattr(rel.target_part, "element")
                                 else rel.target_part.element)
+
+
+def test_campus_template_ignores_cover_and_toc():
+    t = campus_template()
+    prof = analyze(Document(BytesIO(t)))
+    toc = [p for p in prof.paragraphs if "\t" in p["text"]]
+    assert toc and all(p["role"] == "abaikan" for p in toc)
+    assert prof.bab_mode == "split"
+    c = parse_text("DAFTAR ISI\nBAB I PENDAHULUAN ........ 1\n\n" + SAMPLE_TEXT, available=avail(t))
+    assert any("daftar isi" in w for w in c.warnings)
+    doc, _ = run(t, c)
+    texts = [p.text for p in paras(doc)]
+    assert texts[:3] == ["DAFTAR ISI", "BAB II", "TINJAUAN PUSTAKA"]
+    assert find(doc, "BAB II").paragraph_format.page_break_before

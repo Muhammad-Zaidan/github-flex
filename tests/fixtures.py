@@ -258,3 +258,48 @@ def rich_docx():
     buf = BytesIO()
     d.save(buf)
     return buf.getvalue()
+
+
+def campus_template():
+    """Template kampus lengkap: sampul, kata pengantar, daftar isi manual, lalu BAB I."""
+    d = Document()
+    s = d.sections[0]
+    s.page_width, s.page_height = Cm(21), Cm(29.7)
+    s.left_margin, s.top_margin, s.right_margin, s.bottom_margin = Cm(4), Cm(4), Cm(3), Cm(3)
+    C = WD_ALIGN_PARAGRAPH.CENTER
+    J = WD_ALIGN_PARAGRAPH.JUSTIFY
+    for t, size, bold in (("SKRIPSI", 14, True), ("ANALISIS KINERJA KEUANGAN DAERAH KABUPATEN CONTOH", 14, True),
+                          ("Diajukan untuk memenuhi sebagian syarat memperoleh gelar Sarjana", 12, False),
+                          ("Oleh:", 12, False), ("NAMA MAHASISWA", 12, True), ("NIM 123456789", 12, False),
+                          ("FAKULTAS EKONOMI", 14, True), ("UNIVERSITAS CONTOH", 14, True), ("2024", 14, True)):
+        _fmt(d.add_paragraph(t), size, bold, align=C, line=1.0)
+    p = d.add_paragraph()
+    p.add_run().add_break(WD_BREAK.PAGE)
+    p.add_run("KATA PENGANTAR")
+    _fmt(p, 14, True, align=C, line=1.0)
+    d.add_paragraph()
+    _fmt(d.add_paragraph("Puji syukur penulis panjatkan ke hadirat Tuhan Yang Maha Esa atas rahmat-Nya sehingga "
+                         "skripsi ini dapat diselesaikan dengan baik dan tepat waktu."), align=J, first=1.25)
+    p = d.add_paragraph()
+    p.add_run().add_break(WD_BREAK.PAGE)
+    p.add_run("DAFTAR ISI")
+    _fmt(p, 14, True, align=C, line=1.0)
+    d.add_paragraph()
+    toc = [("KATA PENGANTAR", "ii"), ("DAFTAR ISI", "iii"), ("BAB I PENDAHULUAN", "1"),
+           ("1.1 Latar Belakang", "1"), ("1.2 Rumusan Masalah", "3"), ("BAB II TINJAUAN PUSTAKA", "5"),
+           ("2.1 Landasan Teori", "5"), ("BAB III METODE PENELITIAN", "9"), ("DAFTAR PUSTAKA", "20")]
+    for t, pg in toc:
+        _fmt(d.add_paragraph(f"{t}\t{pg}"), 12, False, line=1.5)
+    for num, name in (("I", "PENDAHULUAN"), ("II", "TINJAUAN PUSTAKA")):
+        p = d.add_paragraph()
+        p.add_run().add_break(WD_BREAK.PAGE)
+        p.add_run(f"BAB {num}")
+        _fmt(p, 14, True, align=C, line=1.0)
+        _fmt(d.add_paragraph(name), 14, True, align=C, line=1.0)
+        d.add_paragraph()
+        _fmt(d.add_paragraph(f"{1 if num == 'I' else 2}.1 Subbab Pertama"), 12, True)
+        _fmt(d.add_paragraph("Paragraf isi ditulis rata kiri-kanan dengan huruf Times New Roman 12 dan "
+                             "spasi satu setengah serta menjorok satu seperempat sentimeter."), align=J, first=1.25)
+    buf = BytesIO()
+    d.save(buf)
+    return buf.getvalue()
