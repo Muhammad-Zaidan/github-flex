@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cetakan</title>
+<meta name="description" content="Satu contoh format, semua tulisan ikut formatnya.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='3' width='22' height='26' rx='3' fill='%231f4d3a'/%3E%3Crect x='9' y='9' width='14' height='2.4' rx='1' fill='%23f3efe6'/%3E%3Crect x='9' y='14' width='14' height='1.6' rx='.8' fill='%23f3efe6'/%3E%3Crect x='9' y='18' width='10' height='1.6' rx='.8' fill='%23f3efe6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="3" width="22" height="26" rx="3"/><rect class="l" x="9" y="9" width="14" height="2.4" rx="1"/><rect class="l" x="9" y="14" width="14" height="1.6" rx=".8"/><rect class="l" x="9" y="18" width="10" height="1.6" rx=".8"/></svg>
+    <div>
+      <h1>Cetakan</h1>
+      <p>Satu contoh format, semua tulisan ikut formatnya.</p>
+    </div>
+  </div>
+  <button class="ghost" id="helpBtn" type="button">Cara pakai</button>
+</header>
+
+<main class="layout">
+  <section class="col-left">
+    <!-- 1. contoh -->
+    <article class="card" id="stepTemplate">
+      <div class="card-head">
+        <span class="step">1</span>
+        <div>
+          <h2>Contoh format</h2>
+          <p class="muted">Template kampus, jurnal, atau tulisan orang lain yang formatnya sudah benar (.docx).</p>
+        </div>
+      </div>
+      <label class="drop" id="tplDrop">
+        <input type="file" id="tplFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+        <span class="drop-icon" aria-hidden="true">⇪</span>
+        <span class="drop-text"><b>Pilih atau seret berkas .docx</b><small>Format dipelajari dari isi dokumen ini</small></span>
+      </label>
+      <div id="tplInfo" class="hidden">
+        <div class="file-row">
+          <span class="file-name" id="tplName"></span>
+          <button class="link" id="tplChange" type="button">Ganti</button>
+        </div>
+        <p class="muted small" id="tplPage"></p>
+        <div class="learned" id="tplRoles"></div>
+        <details class="inspect" id="tplInspect">
+          <summary>Periksa deteksi pada contoh <span class="muted small">(ubah jika ada yang keliru)</span></summary>
+          <div class="para-list" id="tplParas"></div>
+        </details>
+      </div>
+    </article>
+
+    <!-- 2. naskah -->
+    <article class="card" id="stepContent">
+      <div class="card-head">
+        <span class="step">2</span>
+        <div>
+          <h2>Naskah</h2>
+          <p class="muted">Tempel teks mentah, atau unggah .docx yang formatnya berantakan.</p>
+        </div>
+      </div>
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-tab="text" aria-selected="true">Ketik / tempel</button>
+        <button role="tab" class="tab" data-tab="file" aria-selected="false">Unggah .docx</button>
+      </div>
+      <div class="tab-pane" data-pane="text">
+        <textarea id="text" spellcheck="false" placeholder="BAB I&#10;PENDAHULUAN&#10;&#10;1.1 Latar Belakang&#10;Tulis atau tempel isi di sini. Setiap baris menjadi satu paragraf.&#10;&#10;DAFTAR PUSTAKA&#10;Nama, A. (2024). Judul buku. Penerbit."></textarea>
+        <div class="text-opts">
+          <label class="check"><input type="checkbox" id="mergeLines"> Gabungkan baris yang terputus <span class="muted">(teks salinan dari PDF)</span></label>
+          <span class="muted small" id="textStats"></span>
+        </div>
+        <details class="tips">
+          <summary>Penanda opsional</summary>
+          <ul>
+            <li><code># Judul</code>, <code>## Subjudul</code>, <code>### …</code> memaksa tingkat judul</li>
+            <li><code>**tebal**</code>, <code>*miring*</code>, <code>x^2^</code>, <code>H~2~O</code></li>
+            <li><code>- butir</code> atau <code>1. butir</code> untuk daftar, <code>&gt; kutipan</code> untuk kutipan panjang</li>
+            <li>Tabel: tempel dari Word/Excel (dipisah tab) atau <code>| a | b |</code></li>
+          </ul>
+        </details>
+      </div>
+      <div class="tab-pane hidden" data-pane="file">
+        <label class="drop" id="docDrop">
+          <input type="file" id="docFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+          <span class="drop-icon" aria-hidden="true">⇪</span>
+          <span class="drop-text"><b>Pilih atau seret naskah .docx</b><small>Gambar, tabel, persamaan, tebal/miring ikut dibawa</small></span>
+        </label>
+        <div class="file-row hidden" id="docRow">
+          <span class="file-name" id="docName"></span>
+          <button class="link" id="docClear" type="button">Hapus</button>
+        </div>
+      </div>
+    </article>
+
+    <!-- 3. unduh -->
+    <article class="card" id="stepExport">
+      <div class="card-head">
+        <span class="step">3</span>
+        <div>
+          <h2>Unduh hasil</h2>
+          <p class="muted">Word dulu untuk hasil paling presisi; format lain dikonversi dari situ.</p>
+        </div>
+      </div>
+      <div class="formats" id="formats" role="radiogroup" aria-label="Format keluaran"></div>
+      <div class="actions">
+        <button class="primary" id="downloadBtn" type="button" disabled>Unduh</button>
+        <button class="secondary" id="pdfBtn" type="button" disabled>Lihat PDF asli</button>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </article>
+  </section>
+
+  <section class="col-right">
+    <div class="preview-head">
+      <div>
+        <h2>Pratinjau</h2>
+        <p class="muted small" id="previewNote">Klik paragraf untuk mengubah perannya.</p>
+      </div>
+      <div class="legend" id="counts"></div>
+    </div>
+    <div class="paper-wrap" id="paperWrap">
+      <div class="empty-state" id="emptyState">
+        <div class="ghost-page" aria-hidden="true"><i></i><i></i><i class="s"></i><i></i><i></i><i class="s"></i></div>
+        <p><b>Belum ada pratinjau.</b><br>Unggah contoh format, lalu masukkan naskah.</p>
+      </div>
+      <div class="pages" id="pages"></div>
+    </div>
+  </section>
+</main>
+
+<div class="pop hidden" id="rolePop" role="dialog" aria-label="Ubah peran paragraf">
+  <div class="pop-head"><b>Jadikan…</b><button class="link" id="popReset" type="button">Kembalikan otomatis</button></div>
+  <div class="pop-grid" id="popGrid"></div>
+</div>
+
+<dialog id="pdfDialog" class="pdf-dialog">
+  <div class="pdf-head"><b>PDF asli</b><button class="ghost" id="pdfClose" type="button">Tutup</button></div>
+  <iframe id="pdfFrame" title="Pratinjau PDF"></iframe>
+</dialog>
+
+<dialog id="helpDialog" class="help-dialog">
+  <div class="pdf-head"><b>Cara pakai Cetakan</b><button class="ghost" id="helpClose" type="button">Tutup</button></div>
+  <div class="help-body">
+    <ol>
+      <li><b>Unggah satu contoh utuh</b> (.docx): template dari kampus, panduan jurnal, atau tulisan orang lain yang formatnya sudah sesuai. Cetakan mempelajari huruf, ukuran, perataan, menjorok, spasi, jarak antar-bagian, penomoran bab/subbab, pemisah halaman, gaya tabel, dan ukuran kertas &amp; margin.</li>
+      <li><b>Masukkan naskah</b>: tempel teks mentah atau unggah .docx berantakan. Struktur (bab, subbab, daftar, keterangan gambar, daftar pustaka, abstrak, kata kunci) dikenali otomatis tanpa AI.</li>
+      <li><b>Periksa pratinjau</b>. Jika ada yang keliru, klik paragrafnya lalu pilih peran yang benar. Kesalahan deteksi pada contoh juga bisa diperbaiki di bagian “Periksa deteksi pada contoh”.</li>
+      <li><b>Unduh</b> sebagai Word, PDF, ODT, RTF, HTML, Markdown, LaTeX, EPUB, atau teks.</li>
+    </ol>
+    <p class="muted">Tips: makin lengkap contohnya (ada bab, subbab, daftar, gambar, tabel, daftar pustaka), makin presisi hasilnya. Bagian yang tidak ada di contoh memakai gaya terdekat.</p>
+    <p class="muted">Berkas diproses di server ini dan hanya disimpan sementara di memori.</p>
+  </div>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

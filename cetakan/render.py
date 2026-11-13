@@ -13,7 +13,7 @@ from docx.text.run import Run
 
 from .classify import (
     ALPHA_HEAD_RE, ALPHA_LOW_HEAD_RE, BAB_RE, BULLET_RE, NUM_HEAD_RE, NUMLIST_RE, ROMAN_HEAD_RE,
-    UNNUMBERED_RE, list_kind)
+    STOPWORDS, UNNUMBERED_RE, list_kind)
 from .reader import Seg
 from .roles import resolve
 from .template import LABEL_RES, analyze, norm_heading
@@ -21,6 +21,28 @@ from .template import LABEL_RES, analyze, norm_heading
 R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 WP_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
 LEVEL = {"bab": 0, "h1": 1, "h2": 2, "h3": 3}
+
+
+TBLPR_ORDER = ["tblStyle", "tblpPr", "tblOverlap", "bidiVisual", "tblStyleRowBandSize",
+               "tblStyleColBandSize", "tblW", "jc", "tblCellSpacing", "tblInd", "tblBorders", "shd",
+               "tblLayout", "tblCellMar", "tblLook", "tblCaption", "tblDescription", "tblPrChange"]
+TCPR_ORDER = ["cnfStyle", "tcW", "gridSpan", "hMerge", "vMerge", "tcBorders", "shd", "noWrap", "tcMar",
+              "textDirection", "tcFitText", "vAlign", "hideMark", "headers", "cellIns", "cellDel",
+              "cellMerge", "tcPrChange"]
+
+
+def insert_ordered(parent, child, order):
+    """Sisipkan `child` ke `parent` mengikuti urutan elemen skema OOXML (menggantikan yang sama)."""
+    name = child.tag.split("}")[1]
+    for old in parent.findall(child.tag):
+        parent.remove(old)
+    later = order[order.index(name) + 1:] if name in order else []
+    for el in parent:
+        if el.tag.split("}")[-1] in later:
+            el.addprevious(child)
+            return child
+    parent.append(child)
+    return child
 
 
 def roman(n):
@@ -95,6 +117,38 @@ def upper(segs):
     return [s if s.xml is not None else Seg(s.text.upper(), s.b, s.i, s.u, s.sup, s.sub) for s in segs]
 
 
+def title_case(segs):
+    """HURUF KAPITAL SEMUA → Huruf Awal Kapital (kata tugas tetap kecil)."""
+    out, first = [], True
+    for s in segs:
+        if s.xml is not None:
+            out.append(s)
+            continue
+        parts = re.split(r"(\s+)", s.text)
+        for k, w in enumerate(parts):
+            if not w.strip():
+                continue
+            low = w.lower()
+            if (not first and low.strip("()[],.;:") in STOPWORDS) or re.search(r"\d", w):
+                parts[k] = low if not re.search(r"\d", w) else w
+            else:
+                parts[k] = re.sub(r"[^\W\d_]", lambda m: m.group(0).upper(), low, count=1)
+            first = False
+        out.append(Seg("".join(parts), s.b, s.i, s.u, s.sup, s.sub))
+    return out
+
+
+def apply_case(rs, segs):
+    if rs is None:
+        return segs
+    if rs.upper:
+        return upper(segs)
+    text = seg_text(segs)
+    if getattr(rs, "title", False) and any(c.isalpha() for c in text) and text == text.upper():
+        return title_case(segs)
+    return segs
+
+
 def strip_number(segs):
     """Buang nomor manual di awal judul. Kembalikan (segs, angka-angka atau None)."""
     t = seg_text(segs).lstrip()
@@ -140,6 +194,8 @@ class Renderer:
         self.used_nums = set()
         self.first = True
         self.prev_role = None
+        self.cur = None
+        self.origin = {}      # elemen keluaran → (indeks blok naskah, peran gaya)
 
     # ---- dasar ---------------------------------------------------------
     def clear(self):
@@ -236,6 +292,7 @@ class Renderer:
                     run.font.subscript = True
         self.spacing(role)
         self.append(p)
+        self.origin[p] = (self.cur, role)
         self.first = False
         return p
 
@@ -293,8 +350,10 @@ class Renderer:
         if role == "bab" or used == "bab":
             return self.bab(block, segs, rs, used, key)
         segs, nums = strip_number(segs)
-        unnumbered = bool(UNNUMBERED_RE.match(seg_text(segs).strip())) or (exact is not None and not exact.spec
-                                                                       and not exact.auto_num)
+        if exact is not None:
+            unnumbered = not (exact.spec or exact.auto_num)
+        else:
+            unnumbered = bool(UNNUMBERED_RE.match(seg_text(segs).strip()))
         lvl = LEVEL.get(used, LEVEL.get(role, 1))
         num_off = False
         prefix = ""
@@ -321,8 +380,7 @@ class Renderer:
                     prefix = letter(c[lvl]) + "."
                 elif spec[0] == "a":
                     prefix = letter(c[lvl], False) + spec[1]
-        if rs is not None and rs.upper:
-            segs = upper(segs)
+        segs = apply_case(rs, segs)
         if prefix:
             segs = [Seg(prefix + rs.sep)] + segs
         self.para(rs, segs, used, num_off=num_off)
@@ -339,15 +397,21 @@ class Renderer:
         name = segs if seg_text(segs).strip() else None
         if name is None and block.next_name is not None:
             name = block.next_name
+        if "bab" not in self.available:
+            # contoh tanpa bab (mis. jurnal): bab naskah menjadi subjudul tingkat 1
+            if name is None:
+                return
+            if num:
+                self.counters[1] = num - 1
+            return self.heading(block, "h1", name)
         unnumbered = num is None and bool(UNNUMBERED_RE.match(t))
         if not unnumbered:
             self.counters[0] = num if num else self.counters[0] + 1
             self.counters[1:] = [0, 0, 0]
             num = self.counters[0]
         name_rs, _ = self.style("bab_nama") if "bab_nama" in self.available else (rs, used)
-        upper_name = (name_rs.upper if name_rs else False) or (rs.upper if rs else False)
-        if name is not None and upper_name:
-            name = upper(name)
+        if name is not None:
+            name = apply_case(name_rs if name_rs is not None else rs, name)
         roman_style = True
         for b in self.profile.paragraphs:
             if b["role"] == "bab":
@@ -372,9 +436,10 @@ class Renderer:
     # ---- daftar ----------------------------------------------------------
     def list_item(self, block, segs, state):
         kind = list_kind(block.item)
-        rs = self.profile.lists.get(kind) or next(iter(self.profile.lists.values()), None)
+        rs = self.profile.lists.get(kind)
+        variant = rs is None
         if rs is None:
-            rs, _ = self.style("daftar")
+            rs = next(iter(self.profile.lists.values()), None) or self.style("daftar")[0]
         segs, marker = strip_marker(segs)
         if state.get("kind") != kind:
             state.clear()
@@ -382,19 +447,25 @@ class Renderer:
         state["n"] += 1
         override = None
         if rs is not None and rs.auto_num:
-            if kind == "number" and rs.num_fmt != "bullet":
+            # contoh hanya punya daftar berbutir (atau hanya bernomor): pakai indentasinya,
+            # tetapi buat definisi penomoran baru dengan jenis yang sesuai naskah
+            base = self.list_variant(rs.num, kind) if variant else rs.num
+            if base is not None and (kind == "number" or variant):
                 if state["num"] is None:
-                    if rs.num[0] in self.used_nums:
-                        state["num"] = self.restart_num(rs.num)
+                    if base[0] in self.used_nums and kind == "number":
+                        state["num"] = self.restart_num(base)
                     else:
-                        state["num"] = rs.num
-                        self.used_nums.add(rs.num[0])
+                        state["num"] = base
+                        self.used_nums.add(base[0])
                 override = state["num"]
-            if block.item.num and block.item.num[1] and override:
-                override = (override[0], block.item.num[1])
+            ilvl = block.item.num[1] if block.item.num else 0
+            if ilvl and override:
+                override = (override[0], ilvl)
         else:
-            mk = rs.marker if rs is not None and rs.marker else ("•" if kind == "bullet" else "1.")
+            mk = rs.marker if rs is not None and rs.marker else None
             if kind == "number":
+                if not mk or BULLET_RE.match(mk + " "):
+                    mk = "1."
                 n = state["n"]
                 if re.match(r"^\(?\d", mk):
                     mk = re.sub(r"\d+", str(n), mk, count=1)
@@ -402,10 +473,56 @@ class Renderer:
                     mk = re.sub(r"[a-z]", letter(n, False), mk, count=1)
                 elif re.match(r"^\(?[A-Z]", mk):
                     mk = re.sub(r"[A-Z]", letter(n), mk, count=1)
-            elif marker and BULLET_RE.match(marker + " ") and rs is None:
-                mk = marker
-            segs = [Seg(mk + (rs.sep if rs is not None else " "))] + segs
+            elif not mk or not BULLET_RE.match(mk + " "):
+                mk = marker if marker and BULLET_RE.match(marker + " ") else "•"
+            sep = rs.sep if rs is not None and rs.marker else "\t" if rs is not None and (
+                rs.summary.get("first_line") or 0) < 0 else " "
+            segs = [Seg(mk + sep)] + segs
         self.para(rs, segs, "daftar", num_override=override)
+
+    def list_variant(self, num, kind):
+        """numId baru yang meniru definisi `num` tetapi berjenis bullet/angka."""
+        key = (num, kind)
+        cache = self.__dict__.setdefault("_variants", {})
+        if key in cache:
+            return cache[key]
+        try:
+            numbering = self.numbering()
+        except Exception:
+            return None
+        old = next((n for n in numbering.findall(qn("w:num")) if n.get(qn("w:numId")) == str(num[0])), None)
+        if old is None:
+            return None
+        aid = old.find(qn("w:abstractNumId")).get(qn("w:val"))
+        absn = next((a for a in numbering.findall(qn("w:abstractNum"))
+                     if a.get(qn("w:abstractNumId")) == aid), None)
+        if absn is None:
+            return None
+        new_abs = deepcopy(absn)
+        ids = [int(a.get(qn("w:abstractNumId"))) for a in numbering.findall(qn("w:abstractNum"))]
+        new_id = max(ids + [0]) + 1
+        new_abs.set(qn("w:abstractNumId"), str(new_id))
+        for tag in ("w:nsid", "w:tmpl", "w:numStyleLink", "w:styleLink"):
+            for x in new_abs.findall(qn(tag)):
+                new_abs.remove(x)
+        for lvl in new_abs.findall(qn("w:lvl")):
+            n = int(lvl.get(qn("w:ilvl"), "0"))
+            fmt, txt = lvl.find(qn("w:numFmt")), lvl.find(qn("w:lvlText"))
+            if fmt is None or txt is None:
+                continue
+            if kind == "number":
+                fmt.set(qn("w:val"), ("decimal", "lowerLetter", "lowerRoman")[n % 3])
+                txt.set(qn("w:val"), f"%{n + 1}.")
+                rpr = lvl.find(qn("w:rPr"))
+                if rpr is not None:
+                    lvl.remove(rpr)
+            else:
+                fmt.set(qn("w:val"), "bullet")
+                txt.set(qn("w:val"), "•–◦"[n % 3])
+        numbering.findall(qn("w:abstractNum"))[-1].addnext(new_abs)
+        new = numbering.add_num(new_id)
+        cache[key] = (new.numId, num[1])
+        return cache[key]
 
     # ---- tabel -----------------------------------------------------------
     def table(self, block):
@@ -424,6 +541,7 @@ class Renderer:
             else:
                 tbl.insert(0, new)
         self.append(tbl)
+        self.origin[tbl] = (self.cur, "tabel")
         self.first = False
 
     def _fill_cell(self, tc, paras_segs, head):
@@ -436,9 +554,7 @@ class Renderer:
             tcPr = tc.get_or_add_tcPr() if hasattr(tc, "get_or_add_tcPr") else tc.find(qn("w:tcPr"))
             if tcPr is not None:
                 for c in extra:
-                    for old in tcPr.findall(c.tag):
-                        tcPr.remove(old)
-                    tcPr.append(deepcopy(c))
+                    insert_ordered(tcPr, deepcopy(c), TCPR_ORDER)
         for segs in paras_segs or [[]]:
             saved = self.append
             self.append = tc.append
@@ -448,8 +564,33 @@ class Renderer:
             self.prev_role, self.first = prev, first
             self.append = saved
 
+    def ensure_style(self, sid):
+        """Salin definisi gaya `sid` (beserta induknya) dari naskah bila contoh tidak memilikinya."""
+        styles = self.doc.styles.element
+        have = {x.get(qn("w:styleId")) for x in styles.findall(qn("w:style"))}
+        src = getattr(self, "source", None)
+        while sid and sid not in have and src is not None:
+            el = next((x for x in src.styles.element.findall(qn("w:style"))
+                       if x.get(qn("w:styleId")) == sid), None)
+            if el is None:
+                return False
+            styles.append(deepcopy(el))
+            have.add(sid)
+            based = el.find(qn("w:basedOn"))
+            sid = based.get(qn("w:val")) if based is not None else None
+        return True
+
     def import_table(self, block):
         tbl = deepcopy(block.tbl)
+        if self.profile.table.get("tblPr") is None:
+            tblPr = tbl.find(qn("w:tblPr"))
+            ts = tblPr.find(qn("w:tblStyle")) if tblPr is not None else None
+            ok = ts is not None and self.ensure_style(ts.get(qn("w:val")))
+            borders = tblPr is not None and tblPr.find(qn("w:tblBorders")) is not None
+            if not ok and not borders and tblPr is not None:
+                if ts is not None:
+                    tblPr.remove(ts)
+                insert_ordered(tblPr, self.grid_borders(), TBLPR_ORDER)
         for r, tr in enumerate(tbl.findall(qn("w:tr"))):
             for c, tc in enumerate(tr.findall(qn("w:tc"))):
                 try:
@@ -461,20 +602,25 @@ class Renderer:
                 self._fill_cell(tc, content, r == 0)
         return tbl
 
+    @staticmethod
+    def grid_borders():
+        borders = OxmlElement("w:tblBorders")
+        for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+            b = OxmlElement(f"w:{side}")
+            b.set(qn("w:val"), "single")
+            b.set(qn("w:sz"), "4")
+            b.set(qn("w:space"), "0")
+            b.set(qn("w:color"), "000000")
+            borders.append(b)
+        return borders
+
     def text_table(self, rows):
         ncols = max(len(r) for r in rows)
         t = self.doc.add_table(rows=len(rows), cols=ncols)
         tbl = t._tbl
         tbl.getparent().remove(tbl)
         if self.profile.table.get("tblPr") is None:
-            borders = OxmlElement("w:tblBorders")
-            for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
-                b = OxmlElement(f"w:{side}")
-                b.set(qn("w:val"), "single")
-                b.set(qn("w:sz"), "4")
-                b.set(qn("w:color"), "000000")
-                borders.append(b)
-            tbl.tblPr.append(borders)
+            insert_ordered(tbl.tblPr, self.grid_borders(), TBLPR_ORDER)
         for r, row in enumerate(rows):
             for c in range(ncols):
                 tc = t.cell(r, c)._tc
@@ -486,7 +632,8 @@ class Renderer:
         self.source = content.source
         self.warnings.update(content.warnings)
         self.clear()
-        blocks = [b for b in content.blocks if b.role != "abaikan"]
+        order = [i for i, b in enumerate(content.blocks) if b.role != "abaikan"]
+        blocks = [content.blocks[i] for i in order]
         # gabungkan "BAB I" + nama bab berikutnya
         for b in blocks:
             b.next_name = None
@@ -499,9 +646,12 @@ class Renderer:
                     skip.add(k + 1)
         list_state = {}
         title = None
+        # naskah ber-BAB pada contoh tanpa bab: turunkan subjudul satu tingkat
+        shift = "bab" not in self.available and any(b.role in ("bab", "bab_nama") for b in blocks)
         for k, b in enumerate(blocks):
             if k in skip:
                 continue
+            self.cur = order[k]
             role = b.role or "paragraf"
             if role != "daftar":
                 list_state = {}
@@ -513,21 +663,24 @@ class Renderer:
                 continue
             if role == "judul" and title is None:
                 title = seg_text(segs).strip()
+            if shift:
+                role = {"h1": "h2", "h2": "h3"}.get(role, role)
             if role in ("bab", "bab_nama", "h1", "h2", "h3"):
                 if role == "bab_nama":
                     rs, used = self.style("bab_nama")
-                    self.para(rs, upper(segs) if rs and rs.upper else segs, used)
+                    self.para(rs, apply_case(rs, segs), used)
                 else:
                     self.heading(b, role, segs)
             elif role == "daftar":
                 self.list_item(b, segs, list_state)
             else:
                 rs, used = self.style(role)
-                if rs is not None and rs.upper:
-                    segs = upper(segs)
-                self.para(rs, segs, used)
+                self.para(rs, apply_case(rs, segs), used)
         if title:
             self.doc.core_properties.title = title[:250]
+        return self.save()
+
+    def save(self):
         out = BytesIO()
         self.doc.save(out)
         return out.getvalue()

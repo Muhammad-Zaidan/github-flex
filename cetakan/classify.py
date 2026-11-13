@@ -209,8 +209,10 @@ def classify(items, available=None):
 
     order = [k for k in range(n) if roles[k] is not None]
 
+    pos_of = {k: i for i, k in enumerate(order)}
+
     def nxt(k):
-        pos = order.index(k)
+        pos = pos_of[k]
         return order[pos + 1] if pos + 1 < len(order) else None
 
     # --- tahap 2: judul tanpa format di teks polos ---------------------------
@@ -225,14 +227,16 @@ def classify(items, available=None):
             roles[k], kinds[k] = "heading", ("b",)
 
     # --- tahap 3: butir berurutan dengan pola sama = daftar, bukan judul -----
+    as_list = set()
     for a, b in zip(order, order[1:]):
         ka, kb = kinds[a], kinds[b]
         if (roles[a] == roles[b] == "heading" and ka == kb and ka and ka[0] in ("d", "A", "a", "R")
                 and (ka[0] != "d" or ka[1] == 1)):
             pa, pb = items[a].props, items[b].props
             if not (pa and pa.get("bold")) and not (pb and pb.get("bold")):
-                roles[a] = roles[b] = "daftar"
-                kinds[a] = kinds[b] = None
+                as_list.update((a, b))
+    for k in as_list:
+        roles[k], kinds[k] = "daftar", None
 
     # --- tahap 4: bagian depan (judul + penulis) -----------------------------
     allow_title = available is None or "judul" in available
@@ -243,7 +247,9 @@ def classify(items, available=None):
         p = it.props
         looks = words(t) <= 35 and not t.endswith(".")
         if p is not None:
-            looks = looks and (p.get("align") == "center" or p.get("bold")
+            nk = nxt(k0)
+            before_heading = nk is not None and roles[nk] == "heading" and words(t) <= 20
+            looks = looks and (p.get("align") == "center" or p.get("bold") or before_heading
                                or (p.get("size") or 0) >= base_size + 2)
         if roles[k0] in ("paragraf", "heading") and looks and (kinds[k0] in (None, ("b",))):
             roles[k0], kinds[k0] = "judul", None
@@ -310,7 +316,7 @@ def classify(items, available=None):
             continue
         if r == "kata_kunci":
             section = None
-        elif section == "abs" and r == "paragraf":
+        elif section == "abs" and r in ("paragraf", "kutipan"):
             roles[k] = "abstrak"
         elif section == "ref" and r in ("paragraf", "daftar"):
             roles[k] = "pustaka"

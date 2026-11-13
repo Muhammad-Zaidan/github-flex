@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cetakan"
+version = "0.1.0"
+description = "Salin format satu dokumen contoh (.docx) ke tulisan baru, tanpa AI."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "python-docx>=1.1",
+    "lxml>=5",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "httpx>=0.27"]
+
+[project.scripts]
+cetakan = "cetakan.cli:main"
+cetakan-web = "cetakan.server:main"
+
+[tool.setuptools]
+packages = ["cetakan"]
+
+[tool.setuptools.package-data]
+cetakan = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

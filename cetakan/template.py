@@ -10,7 +10,7 @@ from lxml import etree
 
 from .classify import (
     ABS_INLINE_RE, ALPHA_HEAD_RE, ALPHA_LOW_HEAD_RE, BAB_ONLY_RE, BAB_RE, BULLET_RE, CAPTION_RE,
-    KEYWORD_RE, NUM_HEAD_RE, NUMLIST_RE, ROMAN_HEAD_RE, classify, list_kind)
+    KEYWORD_RE, NUM_HEAD_RE, NUMLIST_RE, ROMAN_HEAD_RE, classify, is_titleish, list_kind)
 from .reader import para_item, para_text
 from .roles import HEADINGS, ROLES
 from .styles import StyleResolver, summary
@@ -57,6 +57,7 @@ class RoleStyle:
     rPr: object = None
     label_rPr: object = None
     upper: bool = False
+    title: bool = False           # contoh memakai Huruf Awal Kapital
     auto_num: bool = False
     num: tuple = None             # (numId, ilvl) bila bernomor otomatis
     num_fmt: str = None
@@ -126,13 +127,13 @@ def _role_style(role, p, res, item, texts):
             end = len(full) - len(full.lstrip()) + m.end()
             while end < len(full) and full[end].isspace():
                 end += 1
-            pos, after = 0, None
+            pos, after, found = 0, None, False
             for r, t in runs:
                 if pos <= end < pos + len(t):
-                    after = r
+                    after, found = r, True
                     break
                 pos += len(t)
-            if after is not None and _sig(after) != _sig(first[0]):
+            if found and _sig(after) != _sig(first[0]):
                 label_rPr, rPr = first[0], after
             break
     props = res.para_props(p)
@@ -154,6 +155,9 @@ def _role_style(role, p, res, item, texts):
         if m:
             rs.marker = m.group(1)
             rs.sep = re.match(r"^\S+(\s+)", t).group(1)
+    letters = [t for t in texts if any(c.isalpha() for c in t)]
+    rs.title = (not rs.upper and len(letters) > 0 and role in HEADINGS + ("judul",)
+                and all(is_titleish(t) and t != t.upper() for t in letters))
     rs.summary["upper"] = rs.upper
     rs.summary["auto_num"] = rs.auto_num
     return rs
