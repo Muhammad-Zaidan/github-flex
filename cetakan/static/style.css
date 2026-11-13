@@ -179,6 +179,13 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; backgro
   background: var(--paper); color: #111; box-shadow: var(--paper-shadow); position: relative;
   font-family: "Times New Roman", Times, serif;
 }
+.page { display: flex; flex-direction: column; }
+.page .page-body { flex: 1; }
+.page .fnotes { margin-top: 12px; font-size: 10pt; line-height: 1.2; text-align: justify; }
+.page .fnotes::before { content: ""; display: block; width: 35%; border-top: 1px solid #999; margin-bottom: 4px; }
+.page .fnotes div { padding: 1px 0; }
+.page .fnref { cursor: help; }
+.page .img { vertical-align: bottom; max-width: 100%; object-fit: contain; }
 .page .pp { white-space: pre-wrap; overflow-wrap: anywhere; position: relative; border-radius: 2px; cursor: pointer; }
 .page .pp:hover { outline: 1.5px solid rgba(47, 107, 82, .45); outline-offset: 2px; }
 .page .pp.sel { outline: 2px solid #2f6b52; outline-offset: 2px; background: rgba(47, 107, 82, .06); }

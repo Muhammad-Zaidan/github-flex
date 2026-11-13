@@ -5,13 +5,16 @@ from dataclasses import dataclass, field
 from io import BytesIO
 
 from docx import Document
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.oxml import parse_xml
 from docx.oxml.ns import qn
 
 from .classify import Item, classify
 from .styles import StyleResolver
 
 M_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math"
-INLINE_RE = re.compile(r"\*\*(.+?)\*\*|\*([^*\s](?:[^*]*?[^*\s])?)\*|\^([^^\s]+)\^|~([^~\s]+)~")
+INLINE_RE = re.compile(r"\*\*(.+?)\*\*|\*([^*\s](?:[^*]*?[^*\s])?)\*|\[\^([^\]\s]+)\]|\^([^^\s]+)\^|~([^~\s]+)~")
+NOTE_DEF_RE = re.compile(r"^\[\^([^\]\s]+)\]:\s*(.*)$")
 MD_HEAD_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 PIPE_SEP_RE = re.compile(r"^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$")
 
@@ -25,6 +28,11 @@ class Seg:
     sup: bool = False
     sub: bool = False
     xml: object = None      # elemen run berisi gambar, atau persamaan (m:oMath)
+    note: list = None       # catatan kaki: daftar paragraf, tiap paragraf daftar Seg
+
+    @property
+    def special(self):
+        return self.xml is not None or self.note is not None
 
 
 @dataclass
@@ -53,15 +61,20 @@ class Content:
 # ---------------------------------------------------------------------------
 # teks polos
 # ---------------------------------------------------------------------------
-def inline(text):
-    """Teks dengan penanda **tebal**, *miring*, ^atas^, ~bawah~ → daftar Seg."""
+def inline(text, notes=None):
+    """Teks dengan penanda **tebal**, *miring*, ^atas^, ~bawah~, [^1] → daftar Seg."""
     segs, pos = [], 0
     for m in INLINE_RE.finditer(text):
+        b, i, ref, sup, sub = m.groups()
+        if ref is not None and (notes is None or ref not in notes):
+            continue
         if m.start() > pos:
             segs.append(Seg(text[pos:m.start()]))
-        b, i, sup, sub = m.groups()
-        if b is not None:
-            segs.extend(Seg(s.text, b=True, i=s.i) for s in inline(b))
+        if ref is not None:
+            segs.append(Seg(note=[inline(notes[ref])]))
+        elif b is not None:
+            segs.extend(s if s.special else Seg(s.text, b=True, i=s.i, sup=s.sup, sub=s.sub)
+                        for s in inline(b, notes))
         elif i is not None:
             segs.append(Seg(i, i=True))
         elif sup is not None:
@@ -87,8 +100,18 @@ def _split_cells(line):
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
 
+CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\ufffe\uffff]")
+
+
 def parse_text(text, merge_lines=False, available=None):
+    text = CONTROL_RE.sub("", text.replace("\u2028", "\n").replace("\u2029", "\n"))
     lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    notes = {}
+    for k, line in enumerate(lines):
+        m = NOTE_DEF_RE.match(line.strip())
+        if m:
+            notes[m.group(1)] = m.group(2).strip()
+            lines[k] = ""
     raw = []          # (jenis, isi)
     k = 0
     while k < len(lines):
@@ -135,7 +158,7 @@ def parse_text(text, merge_lines=False, available=None):
         if kind == "blank":
             continue
         if kind == "table":
-            rows = [[inline(c) for c in r] for r in val]
+            rows = [[inline(c, notes) for c in r] for r in val]
             blocks.append(Block(kind="table", rows=rows, role="tabel", auto_role="tabel",
                                 item=Item(text=" | ".join(val[0]), forced="tabel")))
             continue
@@ -148,7 +171,7 @@ def parse_text(text, merge_lines=False, available=None):
         elif val.startswith(">"):
             body = val.lstrip("> ").strip()
             item = Item(text=body, forced="kutipan")
-        segs = inline(body)
+        segs = inline(body, notes)
         item.text = "".join(sg.text for sg in segs)
         blocks.append(Block(segs=segs, item=item))
     _classify_blocks(blocks, available)
@@ -182,7 +205,7 @@ def align_levels(items, roles, available):
 # ---------------------------------------------------------------------------
 # .docx
 # ---------------------------------------------------------------------------
-def _run_segs(r, res, base, out, warnings):
+def _run_segs(r, res, base, out, warnings, notes=None):
     props = res.run_props(base, r)
     fmt = dict(b=bool(props.get("bold")), i=bool(props.get("italic")),
                u=bool(props.get("underline")), sup=props.get("vert") == "superscript",
@@ -218,11 +241,22 @@ def _run_segs(r, res, base, out, warnings):
             out.append(Seg(xml=r))
             return
         elif tag in (qn("w:footnoteReference"), qn("w:endnoteReference")):
-            warnings.add("Catatan kaki/akhir belum didukung; tanda rujukannya dihapus.")
+            kind = "foot" if tag == qn("w:footnoteReference") else "end"
+            note = (notes or {}).get((kind, ch.get(qn("w:id"))))
+            if note is None:
+                continue
+            if kind == "end":
+                warnings.add("Catatan akhir (endnote) diubah menjadi catatan kaki.")
+            flush()
+            paras = [_para_segs(np_, res, warnings) for np_ in note.findall(qn("w:p"))]
+            if paras and paras[0] and not paras[0][0].special:
+                f = paras[0][0]
+                paras[0][0] = Seg(f.text.lstrip(), f.b, f.i, f.u, f.sup, f.sub)
+            out.append(Seg(note=[ps for ps in paras if "".join(x.text for x in ps).strip()] or [[]]))
     flush()
 
 
-def _para_segs(p, res, warnings):
+def _para_segs(p, res, warnings, notes=None):
     base = res.para_base(p)
     out = []
 
@@ -230,7 +264,7 @@ def _para_segs(p, res, warnings):
         for ch in el:
             tag = ch.tag
             if tag == qn("w:r"):
-                _run_segs(ch, res, base, out, warnings)
+                _run_segs(ch, res, base, out, warnings, notes)
             elif tag in (qn("w:hyperlink"), qn("w:smartTag"), qn("w:ins"), qn("w:fldSimple"),
                          qn("w:customXml"), qn("w:moveTo")):
                 walk(ch)
@@ -242,14 +276,14 @@ def _para_segs(p, res, warnings):
                 out.append(Seg(xml=ch))
     walk(p)
     # tebal/miring yang menutupi seluruh paragraf adalah format paragraf, bukan penekanan
-    text_segs = [s for s in out if s.xml is None and s.text.strip()]
+    text_segs = [s for s in out if not s.special and s.text.strip()]
     for attr in ("b", "i", "u"):
         if text_segs and all(getattr(s, attr) for s in text_segs):
             for s in out:
                 setattr(s, attr, False)
     merged = []
     for s in out:
-        if merged and s.xml is None and merged[-1].xml is None and \
+        if merged and not s.special and not merged[-1].special and \
                 (s.b, s.i, s.u, s.sup, s.sub) == (merged[-1].b, merged[-1].i, merged[-1].u,
                                                  merged[-1].sup, merged[-1].sub):
             merged[-1] = Seg(merged[-1].text + s.text, s.b, s.i, s.u, s.sup, s.sub)
@@ -290,17 +324,34 @@ def _is_toc(sdt):
     return gal is not None and "content" in (gal.get(qn("w:val")) or "").lower()
 
 
+def _load_notes(doc):
+    notes = {}
+    for rel in doc.part.rels.values():
+        if rel.is_external or rel.reltype not in (RT.FOOTNOTES, RT.ENDNOTES):
+            continue
+        kind = "foot" if rel.reltype == RT.FOOTNOTES else "end"
+        try:
+            root = parse_xml(rel.target_part.blob)
+        except Exception:
+            continue
+        for n in root:
+            if n.get(qn("w:type")) in (None, "normal"):
+                notes[(kind, n.get(qn("w:id")))] = n
+    return notes
+
+
 def parse_docx(data, available=None):
     doc = Document(BytesIO(data))
     res = StyleResolver(doc)
     blocks, warnings = [], set()
+    notes = _load_notes(doc)
 
     def visit(container):
         for el in container:
             if el.tag == qn("w:p"):
                 item = para_item(el, res)
-                segs = _para_segs(el, res, warnings)
-                if item.empty and not any(s.xml is not None for s in segs):
+                segs = _para_segs(el, res, warnings, notes)
+                if item.empty and not any(s.special for s in segs):
                     continue
                 if any(s.xml is not None for s in segs) and not item.text.strip():
                     item.has_drawing = True
@@ -310,7 +361,7 @@ def parse_docx(data, available=None):
                 for tr in el.findall(qn("w:tr")):
                     row = []
                     for tc in tr.findall(qn("w:tc")):
-                        row.append([_para_segs(p, res, warnings) for p in tc.findall(qn("w:p"))])
+                        row.append([_para_segs(p, res, warnings, notes) for p in tc.findall(qn("w:p"))])
                     cells.append(row)
                 first = " | ".join("".join(s.text for s in c[0]) if c else "" for c in cells[0]) if cells else ""
                 blocks.append(Block(kind="table", tbl=el, cells=cells, role="tabel", auto_role="tabel",

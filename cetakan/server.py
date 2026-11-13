@@ -115,8 +115,11 @@ def _block_json(i, b):
         out["rows"] = [r[:12] for r in rows[:60]]
         out["text"] = f"Tabel {len(rows)} baris"
     else:
-        out["segs"] = [{"t": s.text, "b": s.b, "i": s.i, "u": s.u, "sup": s.sup, "sub": s.sub}
-                       if s.xml is None else {"media": True} for s in b.segs]
+        out["segs"] = [{"media": True} if s.xml is not None else
+                       {"t": "*", "sup": True, "note": " ".join("".join(x.text for x in ps) for ps in s.note)}
+                       if s.note is not None else
+                       {"t": s.text, "b": s.b, "i": s.i, "u": s.u, "sup": s.sup, "sub": s.sub}
+                       for s in b.segs]
         out["text"] = b.text
     return out
 
@@ -224,8 +227,14 @@ def main():
     ap = argparse.ArgumentParser(description="Jalankan web app Cetakan.")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--buka", action="store_true", help="buka browser otomatis")
     a = ap.parse_args()
-    print(f"Cetakan berjalan di http://{a.host}:{a.port}")
+    url = f"http://{'127.0.0.1' if a.host in ('0.0.0.0', '::') else a.host}:{a.port}"
+    print(f"Cetakan berjalan di {url}  (tekan Ctrl+C untuk berhenti)")
+    if a.buka:
+        import threading
+        import webbrowser
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
     uvicorn.run(app, host=a.host, port=a.port, log_level="warning")
 
 

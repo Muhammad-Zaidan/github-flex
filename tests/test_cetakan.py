@@ -294,3 +294,99 @@ def test_export_markdown():
     data, _ = render(t, parse_text(SAMPLE_TEXT, available=avail(t)))
     md = convert(data, "md").decode()
     assert "TINJAUAN PUSTAKA" in md and "*Davis*" in md
+
+
+# ---------------------------------------------------------------------------
+# catatan kaki
+# ---------------------------------------------------------------------------
+FN_TEXT = ("BAB I\nPENDAHULUAN\n1.1 Latar Belakang\nHukum adat diakui konstitusi[^1] dan dihormati negara "
+           "sebagai bagian dari **sistem hukum nasional[^2]** yang hidup.\n\n"
+           "[^1]: Pasal 18B ayat (2) UUD 1945.\n[^2]: Soepomo, *Bab-Bab tentang Hukum Adat*, hlm. 3.")
+
+
+def _footnotes(doc):
+    from docx.opc.constants import RELATIONSHIP_TYPE as RT
+    from docx.oxml import parse_xml
+    part = next(r.target_part for r in doc.part.rels.values() if r.reltype == RT.FOOTNOTES)
+    root = parse_xml(part.blob)
+    return [n for n in root.findall(qn("w:footnote")) if n.get(qn("w:type")) is None]
+
+
+def test_footnotes_from_text_and_roundtrip():
+    t = thesis_template()
+    doc, _ = run(t, parse_text(FN_TEXT, available=avail(t)))
+    notes = _footnotes(doc)
+    assert ["".join(x.text for x in n.iter(qn("w:t"))).strip() for n in notes] == \
+        ["Pasal 18B ayat (2) UUD 1945.", "Soepomo, Bab-Bab tentang Hukum Adat, hlm. 3."]
+    refs = list(doc.element.body.iter(qn("w:footnoteReference")))
+    assert [r.get(qn("w:id")) for r in refs] == [n.get(qn("w:id")) for n in notes]
+    # isi catatan: 10 pt, miring tetap miring
+    assert any(r.find(qn("w:rPr")) is not None and r.find(qn("w:rPr")).find(qn("w:i")) is not None
+               for r in notes[1].iter(qn("w:r")))
+    # naskah .docx bercatatan kaki dibaca ulang tanpa kehilangan catatan
+    buf = BytesIO()
+    doc.save(buf)
+    doc2, warnings = run(t, parse_docx(buf.getvalue(), avail(t)))
+    assert len(_footnotes(doc2)) == 2 and warnings == []
+
+
+def test_footnote_style_learned_from_template():
+    t = thesis_template()
+    first, _ = render(t, parse_text(FN_TEXT, available=avail(t)))
+    # ubah gaya catatan kaki di "contoh": rata kiri, 9 pt, pemisah tab
+    from docx.opc.constants import RELATIONSHIP_TYPE as RT
+    d = Document(BytesIO(first))
+    part = next(r.target_part for r in d.part.rels.values() if r.reltype == RT.FOOTNOTES)
+    xml = part.blob.decode().replace('<w:jc w:val="both"/>', '<w:jc w:val="left"/>').replace('w:val="20"', 'w:val="18"')
+    part._blob = xml.encode()
+    buf = BytesIO()
+    d.save(buf)
+    doc, _ = run(buf.getvalue(), parse_text("Isi[^a] paragraf yang cukup panjang supaya dikenali sebagai paragraf isi oleh mesin.\n[^a]: Catatan.", available=None))
+    note = _footnotes(doc)[0]
+    assert note.find(f".//{qn('w:jc')}").get(qn("w:val")) == "left"
+    assert note.find(f".//{qn('w:sz')}").get(qn("w:val")) == "18"
+
+
+# ---------------------------------------------------------------------------
+# keabsahan urutan elemen OOXML (Word menolak urutan yang salah)
+# ---------------------------------------------------------------------------
+ORDER = {
+    "pPr": "pStyle keepNext keepLines pageBreakBefore framePr widowControl numPr suppressLineNumbers pBdr shd "
+           "tabs suppressAutoHyphens kinsoku wordWrap overflowPunct topLinePunct autoSpaceDE autoSpaceDN bidi "
+           "adjustRightInd snapToGrid spacing ind contextualSpacing mirrorIndents suppressOverlap jc "
+           "textDirection textAlignment textboxTightWrap outlineLvl divId cnfStyle rPr sectPr pPrChange",
+    "rPr": "rStyle rFonts b bCs i iCs caps smallCaps strike dstrike outline shadow emboss imprint noProof "
+           "snapToGrid vanish webHidden color spacing w kern position sz szCs highlight u effect bdr shd "
+           "fitText vertAlign rtl cs em lang eastAsianLayout specVanish oMath",
+    "tblPr": "tblStyle tblpPr tblOverlap bidiVisual tblStyleRowBandSize tblStyleColBandSize tblW jc "
+             "tblCellSpacing tblInd tblBorders shd tblLayout tblCellMar tblLook tblCaption tblDescription",
+    "tcPr": "cnfStyle tcW gridSpan hMerge vMerge tcBorders shd noWrap tcMar textDirection tcFitText vAlign "
+            "hideMark",
+}
+
+
+def assert_schema_order(root):
+    for tag, seq in ORDER.items():
+        order = {n: k for k, n in enumerate(seq.split())}
+        for el in root.iter(qn(f"w:{tag}")):
+            names = [c.tag.split("}")[1] for c in el if c.tag.split("}")[1] in order]
+            idx = [order[n] for n in names]
+            assert idx == sorted(idx) and len(set(names)) == len(names), (tag, names)
+
+
+@pytest.mark.parametrize("make", [
+    lambda: run(thesis_template(), parse_text(SAMPLE_TEXT + "\nNama\tNilai\nA\t1", available=avail(thesis_template()))),
+    lambda: run(journal_template(), parse_text(SAMPLE_TEXT, available=avail(journal_template()))),
+    lambda: run(journal_template(), parse_docx(rich_docx(), avail(journal_template()))),
+    lambda: run(thesis_template(), parse_docx(messy_docx(), avail(thesis_template()))),
+    lambda: run(thesis_template(), parse_text(FN_TEXT)),
+])
+def test_output_is_schema_ordered(make):
+    doc, _ = make()
+    assert_schema_order(doc.element)
+    from docx.opc.constants import RELATIONSHIP_TYPE as RT
+    from docx.oxml import parse_xml
+    for rel in doc.part.rels.values():
+        if rel.reltype in (RT.FOOTNOTES, RT.NUMBERING, RT.STYLES):
+            assert_schema_order(parse_xml(rel.target_part.blob) if not hasattr(rel.target_part, "element")
+                                else rel.target_part.element)

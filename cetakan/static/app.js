@@ -279,7 +279,9 @@ function fallbackPreview() {
     if (role === "judul" || role === "bab" || role === "bab_nama") st.align = "center";
     if (role === "daftar" || role === "kutipan") st.ind_left = 0.8;
     if (role === "pustaka") Object.assign(st, { ind_left: 1, first_line: -1 });
-    return { b: b.i, role, style: st, runs: (b.segs || []).map((s) => (s.media ? { media: true } : s)) };
+    const runs = (b.segs || []).map((s) => (s.media ? { media: true }
+      : { ...s, b: s.b || undefined, i: s.i || undefined }));
+    return { b: b.i, role, style: st, runs };
   });
   return { page: { width: 21, height: 29.7, top: 2.5, bottom: 2.5, left: 2.5, right: 2.5 }, items, neutral: true };
 }
@@ -290,10 +292,20 @@ function fallbackPreview() {
 function renderRuns(el, runs, paraStyle) {
   for (const r of runs || []) {
     if (r.media) {
-      const m = document.createElement("span");
-      m.className = "media";
-      m.textContent = "gambar";
-      el.appendChild(m);
+      if (r.src) {
+        const img = document.createElement("img");
+        img.src = r.src;
+        img.alt = "";
+        img.className = "img";
+        if (r.w) img.style.width = r.w + "cm";
+        if (r.h) img.style.height = r.h + "cm";
+        el.appendChild(img);
+      } else {
+        const m = document.createElement("span");
+        m.className = "media";
+        m.textContent = "gambar";
+        el.appendChild(m);
+      }
       continue;
     }
     let node = document.createTextNode(r.t);
@@ -308,6 +320,7 @@ function renderRuns(el, runs, paraStyle) {
       const tag = r.sup ? "sup" : r.sub ? "sub" : "span";
       const s = document.createElement(tag);
       if (css.length) s.style.cssText = css.join(";");
+      if (r.note !== undefined) { s.className = "fnref"; s.title = r.note; }
       s.appendChild(node);
       node = s;
     }
@@ -338,6 +351,7 @@ function renderPreview(data) {
   measure.style.cssText = `position:absolute;visibility:hidden;left:-99999px;top:0;width:${textW}px`;
   pages.appendChild(measure);
   const els = [];
+  const itemOf = new Map();
   const forced = roleMap();
   for (const it of data.items) {
     let el;
@@ -364,6 +378,7 @@ function renderPreview(data) {
       }
     }
     els.push({ el, it });
+    itemOf.set(el, it);
     measure.appendChild(el);
   }
 
@@ -389,7 +404,26 @@ function renderPreview(data) {
     page.className = "page";
     page.style.cssText = `width:${pageW}px;min-height:${pageH}px;padding:${pg.top * CM}px ${pg.right * CM}px ${pg.bottom * CM}px ${pg.left * CM}px`;
     page.setAttribute("aria-label", `Halaman ${n + 1}`);
-    for (const el of list) page.appendChild(el);
+    const body = document.createElement("div");
+    body.className = "page-body";
+    for (const el of list) body.appendChild(el);
+    page.appendChild(body);
+    const notes = [];
+    for (const el of list) {
+      const it = itemOf.get(el);
+      for (const r of (it && it.runs) || []) if (r.note !== undefined) notes.push(r);
+    }
+    if (notes.length) {
+      const fn = document.createElement("div");
+      fn.className = "fnotes";
+      fn.style.fontFamily = (data.items.find((i) => i.style && i.style.font) || {}).style?.font || "";
+      for (const r of notes) {
+        const line = document.createElement("div");
+        line.innerHTML = `<sup>${esc(r.t)}</sup> ${esc(r.note)}`;
+        fn.appendChild(line);
+      }
+      page.appendChild(fn);
+    }
     frag.appendChild(page);
   });
   pages.appendChild(frag);

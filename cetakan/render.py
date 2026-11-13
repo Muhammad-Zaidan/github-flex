@@ -14,7 +14,8 @@ from docx.text.run import Run
 from .classify import (
     ALPHA_HEAD_RE, ALPHA_LOW_HEAD_RE, BAB_RE, BULLET_RE, NUM_HEAD_RE, NUMLIST_RE, ROMAN_HEAD_RE,
     STOPWORDS, UNNUMBERED_RE, list_kind)
-from .reader import Seg
+from .reader import CONTROL_RE, Seg
+from .notes import Footnotes
 from .roles import resolve
 from .template import LABEL_RES, analyze, norm_heading
 
@@ -74,14 +75,14 @@ def letter(n, upper=True):
 # operasi pada daftar Seg
 # ---------------------------------------------------------------------------
 def seg_text(segs):
-    return "".join(s.text for s in segs if s.xml is None)
+    return "".join(s.text for s in segs if not s.special)
 
 
 def cut(segs, n):
     """Buang n karakter pertama dari teks segs."""
     out = []
     for s in segs:
-        if n > 0 and s.xml is None:
+        if n > 0 and not s.special:
             take = min(n, len(s.text))
             n -= take
             rest = s.text[take:]
@@ -89,9 +90,9 @@ def cut(segs, n):
                 out.append(Seg(rest, s.b, s.i, s.u, s.sup, s.sub))
         else:
             out.append(s)
-    while out and out[0].xml is None and not out[0].text.strip():
+    while out and not out[0].special and not out[0].text.strip():
         out.pop(0)
-    if out and out[0].xml is None:
+    if out and not out[0].special:
         f = out[0]
         out[0] = Seg(f.text.lstrip(), f.b, f.i, f.u, f.sup, f.sub)
     return out
@@ -100,7 +101,7 @@ def cut(segs, n):
 def split_at(segs, n):
     left, right = [], []
     for s in segs:
-        if s.xml is not None or n <= 0:
+        if s.special or n <= 0:
             (left if n > 0 else right).append(s)
             continue
         if len(s.text) <= n:
@@ -114,14 +115,14 @@ def split_at(segs, n):
 
 
 def upper(segs):
-    return [s if s.xml is not None else Seg(s.text.upper(), s.b, s.i, s.u, s.sup, s.sub) for s in segs]
+    return [s if s.special else Seg(s.text.upper(), s.b, s.i, s.u, s.sup, s.sub) for s in segs]
 
 
 def title_case(segs):
     """HURUF KAPITAL SEMUA → Huruf Awal Kapital (kata tugas tetap kecil)."""
     out, first = [], True
     for s in segs:
-        if s.xml is not None:
+        if s.special:
             out.append(s)
             continue
         parts = re.split(r"(\s+)", s.text)
@@ -196,6 +197,11 @@ class Renderer:
         self.prev_role = None
         self.cur = None
         self.origin = {}      # elemen keluaran → (indeks blok naskah, peran gaya)
+        ref = next((r for r in self.body.iter(qn("w:r")) if r.find(qn("w:footnoteReference")) is not None), None)
+        ref_rpr = ref.find(qn("w:rPr")) if ref is not None else None
+        para = self.profile.styles.get("paragraf")
+        self.notes = Footnotes(self.doc, deepcopy(ref_rpr) if ref_rpr is not None else None,
+                               para.rPr if para is not None else None)
 
     # ---- dasar ---------------------------------------------------------
     def clear(self):
@@ -265,36 +271,42 @@ class Renderer:
                 if m:
                     label, segs = split_at(segs, m.end())
                     break
-        for group, rPr in ((label, rs.label_rPr if rs else None), (segs, rs.rPr if rs else None)):
-            for s in group:
-                if s.xml is not None:
-                    el = self.import_xml(s.xml)
-                    if el is not None:
-                        p.append(el)
-                    continue
-                if not s.text:
-                    continue
-                r = OxmlElement("w:r")
-                if rPr is not None:
-                    r.append(deepcopy(rPr))
-                p.append(r)
-                run = Run(r, para)
-                run.text = s.text
-                if s.b:
-                    run.font.bold = True
-                if s.i:
-                    run.font.italic = True
-                if s.u:
-                    run.font.underline = True
-                if s.sup:
-                    run.font.superscript = True
-                elif s.sub:
-                    run.font.subscript = True
+        self.write_runs(p, label, rs.label_rPr if rs else None)
+        self.write_runs(p, segs, rs.rPr if rs else None)
         self.spacing(role)
         self.append(p)
         self.origin[p] = (self.cur, role)
         self.first = False
         return p
+
+    def write_runs(self, p, segs, rPr):
+        for s in segs:
+            if s.xml is not None:
+                el = self.import_xml(s.xml)
+                if el is not None:
+                    p.append(el)
+                continue
+            if s.note is not None:
+                p.append(self.notes.add(s.note, self.write_runs))
+                continue
+            if not s.text:
+                continue
+            r = OxmlElement("w:r")
+            if rPr is not None:
+                r.append(deepcopy(rPr))
+            p.append(r)
+            run = Run(r, None)
+            run.text = CONTROL_RE.sub("", s.text)
+            if s.b:
+                run.font.bold = True
+            if s.i:
+                run.font.italic = True
+            if s.u:
+                run.font.underline = True
+            if s.sup:
+                run.font.superscript = True
+            elif s.sub:
+                run.font.subscript = True
 
     def import_xml(self, el):
         """Salin run gambar / persamaan dari dokumen sumber, termasuk berkas gambarnya."""
@@ -659,7 +671,7 @@ class Renderer:
                 self.table(b)
                 continue
             segs = [s for s in b.segs]
-            if seg_text(segs).strip() == "" and not any(s.xml is not None for s in segs):
+            if seg_text(segs).strip() == "" and not any(s.special for s in segs):
                 continue
             if role == "judul" and title is None:
                 title = seg_text(segs).strip()
@@ -681,6 +693,7 @@ class Renderer:
         return self.save()
 
     def save(self):
+        self.notes.flush()
         out = BytesIO()
         self.doc.save(out)
         return out.getvalue()

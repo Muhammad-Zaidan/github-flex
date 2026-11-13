@@ -1,6 +1,7 @@
 """Konversi .docx hasil ke format lain (PDF, ODT, RTF lewat LibreOffice; HTML, Markdown, LaTeX, EPUB lewat Pandoc)."""
 
 import os
+import pathlib
 import shutil
 import subprocess
 import tempfile
@@ -25,12 +26,31 @@ _PROFILE = os.path.join(tempfile.gettempdir(), "cetakan-lo-profile")
 
 
 def soffice():
-    return shutil.which("soffice") or shutil.which("libreoffice")
+    found = shutil.which("soffice") or shutil.which("libreoffice")
+    if found:
+        return found
+    for path in (r"C:\Program Files\LibreOffice\program\soffice.exe",
+                 r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+                 "/Applications/LibreOffice.app/Contents/MacOS/soffice"):
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def pandoc():
+    found = shutil.which("pandoc")
+    if found:
+        return found
+    try:  # pypandoc_binary membawa pandoc sendiri
+        import pypandoc
+        return pypandoc.get_pandoc_path()
+    except Exception:
+        return None
 
 
 def available():
     out = {"docx": True}
-    has_office, has_pandoc = bool(soffice()), bool(shutil.which("pandoc"))
+    has_office, has_pandoc = bool(soffice()), bool(pandoc())
     for k in FORMATS:
         if k in OFFICE:
             out[k] = has_office
@@ -59,15 +79,16 @@ def convert(docx_bytes, fmt):
             # LibreOffice tidak boleh dijalankan paralel dengan profil yang sama.
             with _office_lock:
                 proc = subprocess.run(
-                    [exe, f"-env:UserInstallation=file://{_PROFILE}", "--headless", "--norestore",
+                    [exe, f"-env:UserInstallation={pathlib.Path(_PROFILE).as_uri()}", "--headless", "--norestore",
                      "--convert-to", OFFICE[fmt], "--outdir", tmp, src],
                     capture_output=True, timeout=180)
             out = os.path.join(tmp, f"hasil.{fmt}")
         else:
-            if not shutil.which("pandoc"):
+            exe = pandoc()
+            if not exe:
                 raise ExportError("Pandoc tidak terpasang di server, jadi format ini tidak tersedia.")
             out = os.path.join(tmp, f"hasil.{fmt}")
-            args = ["pandoc", src, "-f", "docx", "-t", PANDOC[fmt], "-o", out]
+            args = [exe, src, "-f", "docx", "-t", PANDOC[fmt], "-o", out]
             if fmt in ("html", "tex"):
                 args.append("--standalone")
             if fmt == "html":
