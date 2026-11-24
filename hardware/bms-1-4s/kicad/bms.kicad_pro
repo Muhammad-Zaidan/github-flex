@@ -1,0 +1,73 @@
+{
+  "board": {
+    "design_settings": {}
+  },
+  "boards": [],
+  "libraries": {
+    "pinned_footprint_libs": [],
+    "pinned_symbol_libs": []
+  },
+  "meta": {
+    "filename": "bms.kicad_pro",
+    "version": 1
+  },
+  "net_settings": {
+    "classes": [
+      {
+        "name": "Default",
+        "clearance": 0.2,
+        "track_width": 0.25,
+        "via_diameter": 0.8,
+        "via_drill": 0.4,
+        "wire_width": 6,
+        "bus_width": 12,
+        "line_style": 0,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "diff_pair_width": 0.2,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1
+      }
+    ],
+    "meta": {
+      "version": 3
+    }
+  },
+  "pcbnew": {
+    "last_paths": {},
+    "page_layout_descr_file": ""
+  },
+  "schematic": {
+    "legacy_lib_dir": "",
+    "legacy_lib_list": []
+  },
+  "sheets": [
+    [
+      "9c192394-0ec2-5c31-a01a-ed374322c9a0",
+      ""
+    ],
+    [
+      "3868cdf5-087a-57b5-838c-3b4a96074f91",
+      "USB-C & PD controller (TPS25750D)"
+    ],
+    [
+      "de6e23a2-35a1-5c2b-9d20-eee864689fae",
+      "Charger buck-boost 1-4S (BQ25713) + DIP jumlah cell"
+    ],
+    [
+      "43451faa-0d85-5ac3-a9c6-2751e01ec976",
+      "Baterai 1-4S + BMS (BQ40Z50-R2)"
+    ],
+    [
+      "85e423b2-09e9-5547-a012-eab13bf3ea54",
+      "Output terminal 1-16V (TPS55289)"
+    ],
+    [
+      "d5122ad4-2245-56c3-b9b4-11109563f188",
+      "MCU STM32G031 + DIP output + LDO 3.3V"
+    ]
+  ],
+  "text_variables": {}
+}
