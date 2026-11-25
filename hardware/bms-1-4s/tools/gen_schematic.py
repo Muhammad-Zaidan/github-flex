@@ -403,6 +403,11 @@ def sheet_usb():
     for n in ("21", "22", "23", "16", "18", "30", "31", "40", "41", "42", "43", "48", "49"):
         s.nc(U.p(n))
     to_pwr(s, U.p("20"), "GND", "right")
+    pd1 = U.p("8")
+    s.text("DRAIN1 (8,15,19,EP58) & DRAIN2 (7,52,56,EP57):\n"
+           "drain MOSFET internal -> HANYA ke pulau tembaga\n"
+           "thermal sendiri. JANGAN ke GND/VBUS/PP_HV.",
+           pd1[0] + 5.08, pd1[1] - 1.27, 1.27)
     # kotak blok & catatan
     s.autobox("Konektor USB-C + proteksi VBUS", ["J101", "D101", "C101", "C102"])
     s.autobox("PD controller TPS65988 + flash konfigurasi", ["U101", "U102", "C103", "C104", "C105", "C106", "C107",
@@ -414,7 +419,7 @@ def sheet_usb():
            "- Konfigurasi dibuat dengan TI TPS65988 Configuration Tool, lalu ditulis ke U102.\n"
            "- ADCIN1 0.83 + SPI_POCI=1 -> BP_NoWait: sink langsung aktif saat baterai habis.\n"
            "- MCU bicara lewat I2C1 (PD_IRQ_N = interrupt kontrak).",
-           256.54, 172.72, 1.524)
+           256.54, 190.5, 1.524)
     return s
 
 
