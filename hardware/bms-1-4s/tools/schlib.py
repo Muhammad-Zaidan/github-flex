@@ -276,7 +276,11 @@ class Part:
         return ROT[self.rot](sx, sy)
 
     def p(self, num):
-        pn = self.sym.pin(str(num))
+        num = str(num)
+        if not num.isdigit() and num in ("G", "S", "D"):
+            pn = next(x for x in self.sym.pins if x.name == num)
+        else:
+            pn = self.sym.pin(num)
         dx, dy = self.off(pn.x, pn.y)
         return (round(self.x + dx, 2), round(self.y + dy, 2))
 
@@ -296,6 +300,7 @@ class Sheet:
         self.key, self.title, self.file, self.paper = key, title, fname, paper
         self.parts, self.wires, self.labels, self.hlabels, self.powers = [], [], [], [], []
         self.ncs, self.texts, self.boxes = [], [], []
+        self.autoboxes = []
         self.refbase = refbase
         self._pwr = 0
 
@@ -368,6 +373,53 @@ class Sheet:
     def box(self, x1, y1, x2, y2, title):
         self.boxes.append((x1, y1, x2, y2, title))
 
+    def autobox(self, title, refs, margin=5.08):
+        """Kotak blok otomatis mengelilingi komponen `refs` beserta wire/label/simbol power di sekitarnya."""
+        self.autoboxes.append((title, list(refs), margin))
+
+    def _resolve_autoboxes(self):
+        for title, refs, m in self.autoboxes:
+            xs, ys = [], []
+            for p in self.parts:
+                if p.ref in refs:
+                    x1, y1, x2, y2 = p.bbox()
+                    xs += [x1, x2]
+                    ys += [y1, y2]
+                    for pn in p.sym.pins:
+                        pt = p.p(pn.num)
+                        xs.append(pt[0])
+                        ys.append(pt[1])
+                    # ruang teks referensi/nilai
+                    xs.append(x2 + 2.54 + 1.0 * max(len(p.ref), len(p.value)))
+            if not xs:
+                continue
+            bx1, by1, bx2, by2 = min(xs), min(ys), max(xs), max(ys)
+
+            def inside(pt, pad=7.62):
+                return bx1 - pad <= pt[0] <= bx2 + pad and by1 - pad <= pt[1] <= by2 + pad
+            ext = []
+            for a, b in self.wires:
+                if inside(a) and inside(b):
+                    ext += [a, b]
+            for name, pt, rot, d in self.powers:
+                if inside(pt):
+                    ext += [pt, (pt[0], pt[1] + (3.81 if d == "down" else -3.81))]
+            for name, pt, d in self.labels:
+                if inside(pt):
+                    L = 1.0 * len(name) + 1.27
+                    ext += [pt, {"right": (pt[0] + L, pt[1]), "left": (pt[0] - L, pt[1]),
+                                 "up": (pt[0], pt[1] - L), "down": (pt[0], pt[1] + L)}[d]]
+            for name, pt, d, shape in self.hlabels:
+                if inside(pt):
+                    L = 1.0 * len(name) + 3.81
+                    ext += [pt, {"right": (pt[0] + L, pt[1]), "left": (pt[0] - L, pt[1]),
+                                 "up": (pt[0], pt[1] - L), "down": (pt[0], pt[1] + L)}[d]]
+            for x, y in ext:
+                bx1, by1, bx2, by2 = min(bx1, x), min(by1, y), max(bx2, x), max(by2, y)
+            self.boxes.append((snap(bx1 - m, 1.27), snap(by1 - m - 5.08, 1.27), snap(bx2 + m, 1.27),
+                               snap(by2 + m, 1.27), title))
+        self.autoboxes = []
+
     # ---- tulis --------------------------------------------------------------
     def _junctions(self):
         cnt = defaultdict(int)
@@ -400,7 +452,40 @@ class Sheet:
                 js.append(pt)
         return sorted(js)
 
+    def _split_wires(self, junctions):
+        """Pecah wire di setiap titik sambungan yang jatuh di tengahnya (pin, simbol power, label, ujung wire lain).
+        KiCad hanya menyambung pin/label yang berada di ujung segmen wire."""
+        pts = set(junctions)
+        for p in self.parts:
+            for pn in p.sym.pins:
+                pts.add(p.p(pn.num))
+        for name, pt, rot, d in self.powers:
+            pts.add(pt)
+        for name, pt, d in self.labels:
+            pts.add(pt)
+        for name, pt, d, shape in self.hlabels:
+            pts.add(pt)
+        for a, b in self.wires:
+            pts.add(a)
+            pts.add(b)
+        out = []
+        for a, b in self.wires:
+            inner = []
+            for pt in pts:
+                if pt in (a, b):
+                    continue
+                if a[0] == b[0] == pt[0] and min(a[1], b[1]) < pt[1] < max(a[1], b[1]):
+                    inner.append(pt)
+                elif a[1] == b[1] == pt[1] and min(a[0], b[0]) < pt[0] < max(a[0], b[0]):
+                    inner.append(pt)
+            seq = [a] + sorted(inner, key=lambda p: abs(p[0] - a[0]) + abs(p[1] - a[1])) + [b]
+            for u, v in zip(seq, seq[1:]):
+                if (u, v) not in out and (v, u) not in out:
+                    out.append((u, v))
+        return out
+
     def render(self, project, root_uuid, sheet_uuid, lib):
+        self._resolve_autoboxes()
         it = []
         path = f"/{root_uuid}/{sheet_uuid}" if sheet_uuid != root_uuid else f"/{root_uuid}"
         used = set()
@@ -410,10 +495,11 @@ class Sheet:
         for i, (name, pt, rot, d) in enumerate(self.powers):
             used.add(name)
             it.append(self._pwr_inst(i, name, pt, rot, d, project, path, lib))
-        for i, (a, b) in enumerate(self.wires):
+        js = self._junctions()
+        for i, (a, b) in enumerate(self._split_wires(js)):
             it.append(f"  (wire (pts (xy {g(a[0])} {g(a[1])}) (xy {g(b[0])} {g(b[1])})) "
                       f"(stroke (width 0) (type default)) (uuid {q(uid(self.key, 'w', i, a, b))}))")
-        for pt in self._junctions():
+        for pt in js:
             it.append(f"  (junction (at {g(pt[0])} {g(pt[1])}) (diameter 0) (color 0 0 0 0) "
                       f"(uuid {q(uid(self.key, 'j', pt))}))")
         for pt in self.ncs:
@@ -453,7 +539,7 @@ class Sheet:
         elif kind == "2pin" and p.rot in (0, 180):
             r = (X + 2.54, Y - 1.27, "left")
         elif kind == "2pin":
-            r = (X, Y - 2.54, None)
+            r = (X, Y - 5.59, None)
         elif kind == "fet":
             r = (x2 + 1.27, Y - 1.27, "left")
         else:
@@ -463,11 +549,13 @@ class Sheet:
         elif kind == "2pin" and p.rot in (0, 180):
             v = (X + 2.54, Y + 1.27, "left")
         elif kind == "2pin":
-            v = (X, Y + 2.54, None)
+            v = (X, Y - 3.3, None)
         elif kind == "fet":
             v = (x2 + 1.27, Y + 1.27, "left")
         else:
             v = (x1, y2 + 1.27, "left")
+
+        fa = {90: 270, 270: 90}.get(p.rot, 0)  # KiCad memutar teks field bersama simbol; kompensasi supaya tetap horizontal
 
         def prop(k, val, at, hide=False):
             x, y, j = at
@@ -476,7 +564,7 @@ class Sheet:
                 eff += f" (justify {j})"
             if hide:
                 eff += " hide"
-            return f"    (property {q(k)} {q(val)} (at {g(x)} {g(y)} 0) {eff}))"
+            return f"    (property {q(k)} {q(val)} (at {g(x)} {g(y)} {fa}) {eff}))"
         isflag = p.symname == "PWR_FLAG"
         props = [prop("Reference", p.ref, r, hide=isflag), prop("Value", p.value, v, hide=p.hide_value or isflag),
                  prop("Footprint", p.fp or s.footprint, (X, Y, None), True),

@@ -20,10 +20,11 @@ for m in re.finditer(r'\(net \(code "?\d+"?\) \(name "([^"]*)"\)(.*?)\)\s*(?=\(n
     if nodes:
         kicad[nodes] = name
 
-errs, netsheets, netconn = G.validate()
+G.build()
+errs, netconn, netsheets = G.intended()
 want = {}
 for net, conns in netconn.items():
-    s = frozenset(c for c in conns if not c.startswith("FLG"))
+    s = frozenset(conns)
     if s:
         want[s] = net
 

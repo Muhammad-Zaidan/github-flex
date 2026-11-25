@@ -1,111 +1,117 @@
-# Netlist (dihasilkan otomatis oleh gen_schematic.py)
+# Netlist (otomatis dari gen_schematic.py)
 
 | Net | Sheet | Koneksi |
 |---|---|---|
-| `+3V3` | mcu, out, usb | C10.1 C80.1 C81.1 C86.1 J6.1 R63.1 R7.1 R80.1 R81.1 R82.1 R83.1 U1.38 U6.3 U7.5 |
-| `BAL_B1` | bms | J2.2 R43.1 |
-| `BAL_B2` | bms | J2.3 R42.1 |
-| `BAL_B3` | bms | J2.4 R41.1 |
-| `BAL_B4` | bms | J2.5 R40.1 |
-| `BATT_N` | bms | C53.2 C54.2 C55.2 FLG6.1 J2.1 J3.2 J4.2 R44.1 R45.1 TH1.2 U4.12 U4.13 U4.15 U4.16 U4.17 U4.23 U4.24 U4.25 U4.33 U4.9 |
-| `BATT_P` | bms | C55.1 FLG5.1 J3.1 Q6.2 R47.2 U4.32 |
-| `BB_BOOT1` | out | C65.1 U5.20 |
-| `BB_BOOT2` | out | C66.1 U5.19 |
-| `BB_CDC` | out | R65.1 U5.16 |
-| `BB_COMP` | out | C75.1 R64.1 U5.15 |
-| `BB_COMP_RC` | out | C74.1 R64.2 |
-| `BB_EN` | mcu, out | R60.1 U5.1 U6.1 |
-| `BB_FSW` | out | R61.1 U5.6 |
-| `BB_INT_N` | mcu, out | R63.2 U5.14 U6.17 |
-| `BB_SW1` | out | C65.2 L2.1 U5.8 |
-| `BB_SW2` | out | C66.2 L2.2 U5.10 |
-| `BB_VCC` | out | C64.1 U5.18 U5.2 U5.21 |
-| `BB_VOUT` | out | C67.1 C68.1 C69.1 C70.1 C71.1 R62.1 U5.11 U5.12 |
-| `BMS_CHG` | bms | Q6.1 R47.1 U4.31 |
-| `BMS_DSG` | bms | Q7.1 R48.1 U4.28 |
-| `BMS_ESD_MID` | bms | C57.2 C58.1 |
-| `BMS_FETMID` | bms | Q6.3 Q7.3 U4.26 |
-| `BMS_PACK` | bms | R49.2 U4.27 |
-| `BMS_PBI` | bms | C54.1 U4.1 |
-| `BMS_SMBC` | bms | R51.1 U4.19 |
-| `BMS_SMBD` | bms | R50.1 U4.18 |
-| `BMS_SRN` | bms | C56.2 R46.2 U4.6 |
-| `BMS_SRP` | bms | C56.1 R45.2 U4.8 |
-| `BMS_TS1` | bms | J4.1 U4.10 |
-| `BMS_TS2` | bms | TH1.1 U4.11 |
-| `BMS_VC1` | bms, chg | C52.2 C53.1 R43.2 SW1.10 U4.5 |
-| `BMS_VC2` | bms, chg | C51.2 C52.1 R42.2 SW1.11 SW1.7 U4.4 |
-| `BMS_VC3` | bms, chg | C50.2 C51.1 R41.2 SW1.12 SW1.6 U4.3 |
-| `BMS_VC4` | bms, chg | C50.1 R40.2 SW1.5 U4.2 |
-| `BTN_APPLY` | mcu | C84.1 SW3.1 U6.11 |
-| `CC1` | usb | C2.1 J1.A5 U1.28 |
-| `CC2` | usb | C3.1 J1.B5 U1.29 |
-| `CELLSEL_1S` | chg | R25.2 SW1.1 |
-| `CELLSEL_2S` | chg | R26.2 SW1.2 |
-| `CELLSEL_3S` | chg | R27.2 SW1.3 |
-| `CELLSEL_4S` | chg | R28.2 SW1.4 |
-| `CELL_BATPRESZ` | chg | R29.1 R30.1 SW1.13 SW1.14 SW1.15 SW1.16 U3.18 |
-| `CELL_SENSE` | chg, mcu | C49.1 R30.2 R31.1 U6.7 |
-| `CHG_ACN` | chg | C22.1 R13.2 U3.2 |
-| `CHG_ACP` | chg | C21.1 R12.2 U3.3 |
-| `CHG_BATDRV` | chg | Q5.1 U3.21 |
-| `CHG_BATP` | chg | Q5.3 R15.1 R16.1 |
-| `CHG_BTST1` | chg | C25.1 U3.30 |
-| `CHG_BTST2` | chg | C26.1 U3.25 |
-| `CHG_COMP1` | chg | C46.1 R22.1 U3.16 |
-| `CHG_COMP1_RC` | chg | C45.1 R22.2 |
-| `CHG_COMP2` | chg | C48.1 R23.1 U3.17 |
-| `CHG_COMP2_RC` | chg | C47.1 R23.2 |
-| `CHG_HIDRV1` | chg | Q1.1 U3.31 |
-| `CHG_HIDRV2` | chg | Q4.1 U3.24 |
-| `CHG_IADPT` | chg | C43.1 R20.1 U3.8 |
-| `CHG_IBAT` | chg | C44.1 U3.9 |
-| `CHG_ILIM` | chg | R18.2 R19.1 U3.6 |
-| `CHG_LODRV1` | chg | Q2.1 U3.29 |
-| `CHG_LODRV2` | chg | Q3.1 U3.26 |
-| `CHG_PSYS` | chg | R21.1 U3.10 |
-| `CHG_REGN` | chg | C27.1 R14.1 R18.1 U3.28 |
-| `CHG_SRN_F` | chg | C39.2 C40.1 R17.2 U3.19 |
-| `CHG_SRP_F` | chg | C39.1 R16.2 U3.20 |
-| `CHG_SW1` | chg | C25.2 L1.1 Q1.2 Q2.3 U3.32 |
-| `CHG_SW2` | chg | C26.2 L1.2 Q3.3 Q4.2 U3.23 |
-| `CHG_VBUS_F` | chg | C20.1 R11.2 U3.1 |
-| `CHG_VDDA` | chg | C28.1 R14.2 R25.1 R26.1 R27.1 R28.1 U3.7 |
-| `CHG_VIN` | chg | C23.1 C24.1 Q1.3 R10.2 R13.1 |
-| `CHRG_OK` | chg, mcu | R82.2 U3.4 U6.14 |
-| `DIP_V0` | mcu | SW2.1 U6.23 |
-| `DIP_V1` | mcu | SW2.2 U6.24 |
-| `DIP_V2` | mcu | SW2.3 U6.25 |
-| `DIP_V3` | mcu | SW2.4 U6.22 |
-| `GND` | bms, chg, mcu, out, usb | C1.2 C10.2 C11.2 C2.2 C20.2 C21.2 C22.2 C23.2 C24.2 C27.2 C28.2 C3.2 C30.2 C31.2 C32.2 C33.2 C34.2 C35.2 C36.2 C37.2 C38.2 C4.2 C40.2 C41.2 C42.2 C43.2 C44.2 C45.2 C46.2 C47.2 C48.2 C49.2 C5.2 C58.2 C6.2 C60.2 C61.2 C62.2 C63.2 C64.2 C67.2 C68.2 C69.2 C7.2 C70.2 C71.2 C72.2 C73.2 C74.2 C75.2 C76.2 C8.2 C80.2 C81.2 C82.2 C83.2 C84.2 C85.2 C86.2 C9.2 D1.2 D2.2 D3.1 D4.1 D5.1 FLG7.1 J1.A1 J1.A12 J1.B1 J1.B12 J1.SH J5.2 J6.5 J7.3 Q2.2 Q3.2 R19.2 R2.2 R20.2 R21.2 R24.2 R29.2 R31.2 R4.2 R44.2 R46.1 R60.2 R61.2 R65.2 R67.2 R8.2 R85.2 SW2.5 SW2.6 SW2.7 SW2.8 SW3.2 U1.11 U1.12 U1.13 U1.14 U1.18 U1.19 U1.26 U1.27 U1.31 U1.36 U1.37 U1.5 U1.6 U1.7 U2.1 U2.2 U2.3 U2.4 U2.7 U3.14 U3.27 U3.33 U5.17 U5.5 U5.9 U6.4 U7.2 |
-| `I2C_SCL` | bms, chg, mcu, out, usb | R51.2 R80.2 U1.9 U3.13 U5.3 U6.26 |
-| `I2C_SDA` | bms, chg, mcu, out, usb | R50.2 R81.2 U1.8 U3.12 U5.4 U6.27 |
-| `LED_CHG` | mcu | R87.1 U6.19 |
-| `LED_CHG_A` | mcu | D4.2 R87.2 |
-| `LED_FAULT` | mcu | R88.1 U6.13 |
-| `LED_FAULT_A` | mcu | D5.2 R88.2 |
-| `LED_STAT` | mcu | R86.1 U6.12 |
-| `LED_STAT_A` | mcu | D3.2 R86.2 |
-| `NRST` | mcu | C82.1 J6.4 U6.5 |
-| `OTG_EN` | chg, mcu | R24.1 U3.5 U6.16 |
-| `PACK_P` | bms, chg | C41.1 C42.1 C57.1 FLG4.1 Q7.2 R15.2 R17.1 R48.2 R49.1 |
-| `PD_ADCIN1` | usb | R1.2 R2.1 U1.2 |
-| `PD_ADCIN2` | usb | R3.2 R4.1 U1.3 |
-| `PD_DRAIN` | usb | U1.15 U1.30 |
-| `PD_I2CM_SCL` | usb | R6.2 U1.17 U2.6 |
-| `PD_I2CM_SDA` | usb | R5.2 U1.16 U2.5 |
-| `PD_IRQ_N` | mcu, usb | R7.2 U1.10 U6.18 |
-| `PD_LDO1V5` | usb | C9.1 U1.4 |
-| `PD_LDO3V3` | usb | C11.1 C8.1 R1.1 R3.1 R5.1 R6.1 U1.1 U2.8 |
-| `PD_PP5V` | usb | R8.1 U1.34 U1.35 |
-| `PROCHOT_N` | chg, mcu | R83.2 U3.11 U6.15 |
-| `SWCLK` | mcu | J6.3 U6.21 |
-| `SWDIO` | mcu | J6.2 U6.20 |
-| `UART_RX` | mcu | J7.2 U6.9 |
-| `UART_TX` | mcu | J7.1 U6.8 |
-| `VBUS_C` | usb | C1.1 D1.1 FLG1.1 J1.A4 J1.A9 J1.B4 J1.B9 U1.23 U1.24 U1.25 U1.32 U1.33 |
-| `VBUS_SYS` | chg, usb | C4.1 C5.1 C6.1 C7.1 FLG2.1 R10.1 R11.1 R12.1 U1.20 U1.21 U1.22 |
-| `VOUT_SENSE` | mcu, out | C76.1 R66.2 R67.1 U6.10 |
-| `VOUT_TERM` | out | C72.1 C73.1 D2.1 J5.1 R62.2 R66.1 U5.13 |
-| `VSYS` | chg, mcu, out | C30.1 C31.1 C32.1 C33.1 C34.1 C35.1 C36.1 C37.1 C38.1 C60.1 C61.1 C62.1 C63.1 C85.1 FLG3.1 Q4.3 Q5.2 R84.1 U3.22 U5.7 U7.1 U7.3 |
-| `VSYS_SENSE` | mcu | C83.1 R84.2 R85.1 U6.6 |
+| `+3V3` | bat, mcu, out, usb | C107.1 C501.1 C502.1 C506.1 J501.1 R352.1 R406.1 R503.1 R504.1 R505.1 R506.1 R507.1 U101.5 U501.4 U502.3 |
+| `BAL1_BLD` | bat | Q311.3 R321.2 |
+| `BAL1_CB` | bat | Q311.1 U301.6 |
+| `BAL1_VDD` | bat | C311.1 R311.2 U301.2 |
+| `BAL2_BLD` | bat | Q312.3 R322.2 |
+| `BAL2_CB` | bat | Q312.1 U302.6 |
+| `BAL2_VDD` | bat | C312.1 R312.2 U302.2 |
+| `BAL3_BLD` | bat | Q313.3 R323.2 |
+| `BAL3_CB` | bat | Q313.1 U303.6 |
+| `BAL3_VDD` | bat | C313.1 R313.2 U303.2 |
+| `BAL4_BLD` | bat | Q314.3 R324.2 |
+| `BAL4_CB` | bat | Q314.1 U304.6 |
+| `BAL4_VDD` | bat | C314.1 R314.2 U304.2 |
+| `BAL_B1` | bat | C312.2 J302.2 Q312.2 R311.1 R321.1 R331.1 U302.3 |
+| `BAL_B2` | bat | C313.2 J302.3 Q313.2 R312.1 R322.1 R332.1 SW301.3 U303.3 |
+| `BAL_B3` | bat | C314.2 J302.4 Q314.2 R313.1 R323.1 R333.1 R351.1 SW301.4 U304.3 |
+| `BAL_B4` | bat | J302.5 R314.1 R324.1 R334.1 R350.1 |
+| `BATT+` | bat, mcu | D301.1 D503.1 F301.2 Q301.1 Q301.2 Q301.3 R301.1 |
+| `BATT_RAW` | bat | F301.1 J301.1 |
+| `BAT_CHG_G` | bat | D302.2 Q302.4 R302.2 R305.1 |
+| `BAT_CHG_G_D` | bat | Q304.3 R305.2 |
+| `BAT_DSG_G` | bat | D301.2 Q301.4 R301.2 R303.1 |
+| `BAT_DSG_G_D` | bat | Q303.3 R303.2 |
+| `BAT_FETMID` | bat | Q301.5 Q301.6 Q301.7 Q301.8 Q302.5 Q302.6 Q302.7 Q302.8 |
+| `BB_ADJ` | mcu, out | Q401.1 R407.1 U501.14 |
+| `BB_DAC` | out | C406.1 R404.2 R405.1 |
+| `BB_EN` | mcu, out | R401.1 U401.4 U501.20 |
+| `BB_FB` | out | C405.2 R402.2 R403.1 R404.1 U401.2 |
+| `BB_PWMI` | out | Q401.3 R405.2 R406.2 |
+| `BB_SW` | out | D401.1 L401.1 U401.3 |
+| `BB_VOUT` | out | C403.1 C404.1 C405.1 D402.1 J401.1 L401.2 R402.1 R408.1 |
+| `BTN_APPLY` | mcu | C503.1 SW502.1 U501.28 |
+| `CC1` | usb | C103.1 J101.A5 U101.24 |
+| `CC2` | usb | C104.1 J101.B5 U101.26 |
+| `CELLSEL_2S` | chg | R210.2 SW201.1 |
+| `CELLSEL_3S` | chg | R211.2 SW201.2 |
+| `CELLSEL_4S` | chg | R212.2 SW201.3 |
+| `CELL_B1` | bat, mcu | C321.1 R331.2 R341.1 U501.7 |
+| `CELL_B2` | bat, mcu | C322.1 R332.2 R342.1 U501.8 |
+| `CELL_B3` | bat, mcu | C323.1 R333.2 R343.1 U501.9 |
+| `CELL_B4` | bat, mcu | C324.1 R334.2 R344.1 U501.10 |
+| `CELL_BATPRESZ` | chg | R213.1 R214.1 SW201.6 SW201.5 SW201.4 U201.18 |
+| `CELL_SENSE` | chg, mcu | C220.1 R214.2 R215.1 U501.13 |
+| `CHG_ACN` | chg | C203.1 R204.2 U201.2 |
+| `CHG_ACP` | chg | C202.1 R203.2 U201.3 |
+| `CHG_BATDRV` | chg | Q205.4 U201.21 |
+| `CHG_BATP` | chg | Q205.5 Q205.6 Q205.7 Q205.8 R205.1 R206.1 |
+| `CHG_BTST1` | chg | C206.1 U201.30 |
+| `CHG_BTST2` | chg | C207.1 U201.25 |
+| `CHG_COMP1` | chg | C224.1 R219.1 U201.16 |
+| `CHG_COMP1_RC` | chg | C223.1 R219.2 |
+| `CHG_COMP2` | chg | C226.1 R220.1 U201.17 |
+| `CHG_COMP2_RC` | chg | C225.1 R220.2 |
+| `CHG_EN` | bat, mcu | Q304.1 R306.1 U501.26 |
+| `CHG_HIDRV1` | chg | Q201.4 U201.31 |
+| `CHG_HIDRV2` | chg | Q204.4 U201.24 |
+| `CHG_IADPT` | chg | C221.1 R217.1 U201.8 |
+| `CHG_IBAT` | chg | C222.1 U201.9 |
+| `CHG_ILIM` | chg | R208.2 R209.1 U201.6 |
+| `CHG_LODRV1` | chg | Q202.4 U201.29 |
+| `CHG_LODRV2` | chg | Q203.4 U201.26 |
+| `CHG_PSYS` | chg | R218.1 U201.10 |
+| `CHG_REGN` | chg | C228.1 R208.1 R221.1 U201.28 |
+| `CHG_SRN_F` | chg | C216.2 C217.1 R207.2 U201.19 |
+| `CHG_SRP_F` | chg | C216.1 R206.2 U201.20 |
+| `CHG_SW1` | chg | C206.2 L201.1 Q201.1 Q201.2 Q201.3 Q202.5 U201.32 |
+| `CHG_SW2` | chg | C207.2 L201.2 Q203.5 Q204.1 Q204.2 Q204.3 U201.23 |
+| `CHG_VBUS_F` | chg | C201.1 R202.2 U201.1 |
+| `CHG_VDDA` | chg | C227.1 R210.1 R211.1 R212.1 R221.2 U201.7 |
+| `CHG_VIN` | chg | C204.1 C205.1 Q201.5 R201.2 R204.1 |
+| `CHRG_OK` | chg, mcu | R506.2 U201.4 U501.23 |
+| `DIP_V0` | mcu | SW501.1 U501.29 |
+| `DIP_V1` | mcu | SW501.2 U501.3 |
+| `DIP_V2` | mcu | SW501.3 U501.2 |
+| `DIP_V3` | mcu | SW501.4 U501.1 |
+| `DSG_EN` | bat, mcu | Q303.1 R304.1 U501.27 |
+| `GND` | bat, chg, mcu, out, usb | C101.2 C102.2 C103.2 C104.2 C105.2 C106.2 C107.2 C108.2 C109.2 C110.2 C201.2 C202.2 C203.2 C204.2 C205.2 C208.2 C209.2 C210.2 C211.2 C212.2 C213.2 C214.2 C217.2 C218.2 C219.2 C220.2 C221.2 C222.2 C223.2 C224.2 C225.2 C226.2 C227.2 C228.2 C301.2 C311.2 C321.2 C322.2 C323.2 C324.2 C325.2 C401.2 C402.2 C403.2 C404.2 C406.2 C407.2 C501.2 C502.2 C503.2 C504.2 C505.2 C506.2 D101.2 D401.2 D402.2 D501.1 D502.1 J101.A1 J101.A12 J101.B1 J101.B12 J101.SH J301.2 J302.1 J303.2 J401.2 J501.5 Q202.1 Q202.2 Q202.3 Q203.1 Q203.2 Q203.3 Q303.2 Q304.2 Q311.2 Q401.2 R102.2 R104.2 R105.2 R209.2 R213.2 R215.2 R217.2 R218.2 R304.2 R306.2 R341.2 R342.2 R343.2 R344.2 R401.2 R403.2 R407.2 R409.2 R508.2 SW501.8 SW501.7 SW501.6 SW501.5 SW502.2 U101.3 U101.4 U101.25 U101.46 U101.44 U101.1 U101.2 U101.20 U101.51 U101.59 U102.4 U201.14 U201.27 U201.33 U301.3 U401.1 U501.5 U502.1 |
+| `I2C_SCL` | chg, mcu, usb | R503.2 U101.27 U201.13 U501.30 |
+| `I2C_SDA` | chg, mcu, usb | R504.2 U101.28 U201.12 U501.31 |
+| `LDO_IN` | mcu | C505.1 D503.3 U502.2 |
+| `LED_FAULT` | mcu | R502.1 U501.17 |
+| `LED_FAULT_A` | mcu | D502.2 R502.2 |
+| `LED_STAT` | mcu | R501.1 U501.16 |
+| `LED_STAT_A` | mcu | D501.2 R501.2 |
+| `NRST` | mcu | C504.1 J501.4 U501.6 |
+| `NTC_BAT` | bat, mcu | C325.1 J303.1 R352.2 U501.11 |
+| `OTG_EN` | chg, mcu | R508.1 U201.5 U501.18 |
+| `PACK+` | bat, chg | C218.1 C219.1 C301.1 D302.1 Q302.1 Q302.2 Q302.3 R205.2 R207.1 R302.1 |
+| `PD_ADCIN1` | usb | R101.2 R102.1 U101.6 |
+| `PD_ADCIN2` | usb | R103.2 R104.1 U101.10 |
+| `PD_DRAIN1` | usb | U101.8 U101.15 U101.19 U101.58 |
+| `PD_DRAIN2` | usb | U101.7 U101.52 U101.56 U101.57 |
+| `PD_GPIO1` | usb | R105.1 U101.17 |
+| `PD_I2C2_SCL` | usb | R107.1 U101.32 |
+| `PD_I2C2_SDA` | usb | R106.1 U101.33 |
+| `PD_IRQ_N` | mcu, usb | R505.2 U101.29 U501.22 |
+| `PD_LDO1V8` | usb | C109.1 U101.35 |
+| `PD_LDO3V3` | usb | C108.1 C110.1 R101.1 R103.1 R106.2 R107.2 R108.1 R109.2 U101.9 U102.8 U102.3 U102.7 |
+| `PD_SPI_CLK` | usb | U101.38 U102.6 |
+| `PD_SPI_CS` | usb | R109.1 U101.39 U102.1 |
+| `PD_SPI_PICO` | usb | U101.37 U102.5 |
+| `PD_SPI_POCI` | usb | R108.2 U101.36 U102.2 |
+| `PROCHOT_N` | chg, mcu | R507.2 U201.11 U501.32 |
+| `SWCLK` | mcu | J501.3 U501.25 |
+| `SWDIO` | mcu | J501.2 U501.24 |
+| `TAPSEL_32` | bat | R351.2 SW301.2 |
+| `TAPSEL_43` | bat | R350.2 SW301.1 |
+| `USB_DN` | usb | J101.A7 J101.B7 U101.53 |
+| `USB_DP` | usb | J101.A6 J101.B6 U101.50 |
+| `VBUS_C` | usb | C101.1 C102.1 D101.1 J101.A4 J101.A9 J101.B4 J101.B9 U101.13 U101.14 |
+| `VBUS_SYS` | chg, out, usb | C105.1 C106.1 C401.1 C402.1 R201.1 R202.1 R203.1 U101.11 U101.12 U401.5 |
+| `VOUT_SENSE` | mcu, out | C407.1 R408.2 R409.1 U501.12 |
+| `VSYS` | chg, mcu | C208.1 C209.1 C210.1 C211.1 C212.1 C213.1 C214.1 D503.2 Q204.5 Q205.1 Q205.2 Q205.3 U201.22 |
